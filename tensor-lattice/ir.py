@@ -1,5 +1,5 @@
 from __future__ import annotations
-from ops import MemoryOp
+from ops import BinaryOp, MemoryOp
 from tensor import Tensor
 
 class IR:
@@ -17,15 +17,19 @@ class IR:
 
 def to_ir(end: Tensor) -> list[IR]:
     kernel_ir: list[IR] = []
-    tensor_list: list[Tensor] = end._topological_sort()
 
+    tensor_list: list[Tensor] = end._topological_sort()
+    op_list: list[BinaryOp] = []
     tensor_pointers: dict[Tensor, IR] = {}
+
     for num, i in enumerate(tensor_list):
         if isinstance(i._op, MemoryOp):
             temp: IR = IR(op = "ARG", data_type = "float*", value = f"tensor_{num}", dependencies = [])
             kernel_ir.append(temp)
             tensor_pointers[i] = temp
-        elif num == len(tensor_list) - 1:
+        elif isinstance(i._op, BinaryOp):
+            op_list.append(i._op)
+        if num == len(tensor_list) - 1:
             temp: IR = IR(op = "ARG", data_type = "float*", value = f"tensor_out", dependencies = [])
             kernel_ir.append(temp)
             tensor_pointers[i] = temp
