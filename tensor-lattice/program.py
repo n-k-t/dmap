@@ -43,7 +43,7 @@ def create_name_and_verify_data_type(child: Tensor) -> str:
     start_buffer: Tensor = child._topological_sort()[0]
     if child._memory._data_type != start_buffer._memory._data_type:
         raise ValueError("The data types of the input and output buffer do not match.")
-    name: str = "_".join([str(i) for i in start_buffer._memory.view] + ["to"] + [str(i) for i in child._memory.view])
+    name: str = "_".join(["k"] + [str(i) for i in start_buffer._memory.view] + ["to"] + [str(i) for i in child._memory.view])
     return name
 
 # Some of this gets redirected to the gen_load
@@ -55,7 +55,7 @@ def gen_store(ir_store: IR, indent_count: int) -> str:
     return store
 
 def gen_load(ir_load: IR) -> str:
-    return f"(*({ir_load.value}) + " + gen_tensor_indices(load_op = ir_load.dependencies[0]) + ")"
+    return f"(*({ir_load.value} + " + gen_tensor_indices(load_op = ir_load.dependencies[0]) + "))"
 
 def gen_tensor_indices(load_op: IR) -> str:
     map_ops: dict[str, str] = {"ADD": "+", "DIV": "/", "MUL": "*", "SUB": "-"}
