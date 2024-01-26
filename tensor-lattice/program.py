@@ -2,13 +2,74 @@ import functools
 import operator
 from tensor import Tensor
 from ops import MemoryOp, BinaryOp
+from ir import IR, to_ir
 
 class Program:
-    def __init__(self) -> None: #Have to have indentation tracker
-        self.headers: list[str] = ["#include <stdlib.h>"]
-        self.main_start: list[str] = ["int main() {"]
+    def __init__(self, child: Tensor) -> None: #Have to have indentation tracker
+        self.child: Tensor = child
+        self.indent_level: int = 0
+        self.headers: list[str] = ["#include <stdlib.h>\n"]
+        self.main_start: str = ""
         self.main_body: list[str] = []
         self.main_end: list[str] = ["}"]
+
+    def generate(self) -> list[str]:
+        kernel_name: str = create_name_and_verify_data_type(child = self.child)
+
+        self.main_start = f"{self.child._memory._data_type} {kernel_name}("
+
+        kernel: list[IR] = to_ir(end = self.child)
+
+        for i in kernel:
+            if i.op == "ARG":
+                self.main_start += f"{i.data_type} {i.value}"
+                if "out" in i.value:
+                    self.main_start += ") {\n"
+                    self.indent_level += 1
+                else:
+                    self.main_start += ", "
+            elif i.op == "FOR":
+                self.main_body.append(("\t" * self.indent_level) + f"for (int {i.value} = {i.dependencies[0].value}; {i.value} < {i.dependencies[1].value}; {i.value}++)" + "{\n")
+                self.indent_level += 1
+            elif i.op == "END":
+                self.main_body.append(("\t" * (self.indent_level - 1)) + "}\n")
+                self.indent_level -= 1
+            elif i.op == "STORE":
+                self.main_body.append(gen_store(ir_store = i, indent_count = self.indent_level))
+            
+        return "".join(self.headers + [self.main_start] + self.main_body + self.main_end)
+
+def create_name_and_verify_data_type(child: Tensor) -> str:
+    start_buffer: Tensor = child._topological_sort()[0]
+    if child._memory._data_type != start_buffer._memory._data_type:
+        raise ValueError("The data types of the input and output buffer do not match.")
+    name: str = "_".join([str(i) for i in start_buffer._memory.view] + ["to"] + [str(i) for i in child._memory.view])
+    return name
+
+# Some of this gets redirected to the gen_load
+def gen_store(ir_store: IR, indent_count: int) -> str:
+    map_ops: dict[str, str] = {"ADD": "+", "DIV": "/", "MUL": "*", "SUB": "-"}
+    left_side = ("\t" * indent_count) + gen_load(ir_load = ir_store.dependencies[0]) + " = "
+    right_side = gen_load(ir_load = ir_store.dependencies[1].dependencies[0]) + f" {map_ops[ir_store.dependencies[1].op]} " + gen_load(ir_load = ir_store.dependencies[1].dependencies[1]) + ";\n"
+    store = left_side + right_side
+    return store
+
+def gen_load(ir_load: IR) -> str:
+    return f"(*({ir_load.value}) + " + gen_tensor_indices(load_op = ir_load.dependencies[0]) + ")"
+
+def gen_tensor_indices(load_op: IR) -> str:
+    map_ops: dict[str, str] = {"ADD": "+", "DIV": "/", "MUL": "*", "SUB": "-"}
+    int_ops: list[str] = ["ADD", "DIV", "MUL", "SUB"]
+    if load_op.dependencies[0].op in int_ops:
+        left_expression = gen_tensor_indices(load_op = load_op.dependencies[0])
+    else:
+        left_expression = str(load_op.dependencies[0].value)
+    if load_op.dependencies[1].op in int_ops:
+        right_expression = gen_tensor_indices(load_op = load_op.dependencies[1])
+    else:
+        right_expression = str(load_op.dependencies[1].value)
+    expression = f"({left_expression} {map_ops[load_op.op]} {right_expression})"
+    return expression
 
 # Take care of the indent in render program instead?
 def render_load_op(indent_number: int, data_type:str, shape: list[int], tensor_number: int) -> str:
