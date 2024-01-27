@@ -138,6 +138,11 @@ def to_ir(end: Tensor) -> list[IR]:
                 tensor_pointers[i] = temp
             op_tensors[i] = i._op
         elif isinstance(i._op, MovementOp):
+            # TODO: Reshapes aren't working because the binary operation still thinks that it is using the original
+            # tensor. I need to update to this so that the correct tensor is considered.
+            # if i in op_tensors:
+            #     op_tensors[i] = tensor_pointers[i._parents[0]]
+            #     del op_tensors[i._parents[0]]
             tensor_pointers[i] = tensor_pointers[i._parents[0]]
             del tensor_pointers[i._parents[0]]
 
