@@ -36,6 +36,8 @@ class Program:
                 self.indent_level -= 1
             elif i.op == "STORE":
                 self.main_body.append(gen_store(ir_store = i, indent_count = self.indent_level))
+            elif i.op == "PLEQ":
+                self.main_body.append(gen_pleq(ir_store = i, indent_count = self.indent_level))
             
         return "".join(self.headers + [self.main_start] + self.main_body + self.main_end)
 
@@ -53,6 +55,12 @@ def gen_store(ir_store: IR, indent_count: int) -> str:
     right_side = gen_load(ir_load = ir_store.dependencies[1].dependencies[0]) + f" {map_ops[ir_store.dependencies[1].op]} " + gen_load(ir_load = ir_store.dependencies[1].dependencies[1]) + ";\n"
     store = left_side + right_side
     return store
+
+def gen_pleq(ir_store: IR, indent_count: int) -> str:
+    left_side = ("\t" * indent_count) + gen_load(ir_load = ir_store.dependencies[0]) + " += "
+    right_side = gen_load(ir_load = ir_store.dependencies[1]) + ";\n"
+    pleq = left_side + right_side
+    return pleq
 
 def gen_load(ir_load: IR) -> str:
     return f"(*({ir_load.value} + " + gen_tensor_indices(load_op = ir_load.dependencies[0]) + "))"

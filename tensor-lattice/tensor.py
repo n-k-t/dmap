@@ -69,7 +69,7 @@ class Tensor:
     # Reduction Operations
     def _reduction(self, axis: int, op_type: str) -> Tensor:
         assert axis >= 0, "The reduction operation cannot be perfomed along a negative axis."
-        assert axis <= len(self._memory.view) - 1, "The reduction operation cannot be performed because the axis provided is larger than the number of dimensions in the tensor."
+        assert axis <= len(self._memory.view) - 1, "The reduction operation cannot be performed because the axis provided is greater than the number of dimensions in the tensor."
         operation = ReduceOp(op = op_type, axis = axis)
         new_shape = deepcopy(self._memory.view)
         new_shape.pop(axis)
