@@ -49,10 +49,14 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
     temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [kernel[-1]])
     kernel.append(temp_load)
 
+
 def preliminary_ir(head: Tensor) -> list[IR]:
     kernel: list[IR] = []
     tensor_pointers: dict[Tensor, IR] = {}
 
+    # Maybe as things are created, I can label them as load/store. This could help create directives down the line.
+    # Further optimizations can be added that remove stores and replace them with loads if shapes match up/same operand.
+    # Could be a curated second AST that indicates loads/stores and points to them. There can be overlap -> fusion in the future.
     for num, parent in enumerate(head._parents):
         temp: IR = IR(op = "ARG", data_type = parent._memory._data_type, value = f"operand_{num}", dependencies = [])
         tensor_pointers[parent] = temp
