@@ -40,7 +40,7 @@ def bin_op_to_ir(child: Tensor, kernel: list[IR], tensors: dict[Tensor, IR], con
                 consts[tensor._memory.stride[axis]] = kernel[-1]
             temp_op: IR = make_ir(op = "MUL", data_type = "int", value = "", dependencies = [axis_loops[axis], consts[tensor._memory.stride[axis]]])
             kernel.append(temp_op)
-            if axis != 0:
+            if index != 0:
                 temp_op: IR = make_ir(op = "ADD", data_type = "int", value = "", dependencies = [store_add[-1], temp_op])
                 kernel.append(temp_op)
             store_add.append(temp_op)
