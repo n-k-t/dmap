@@ -8,12 +8,12 @@ class IR:
             self,
             op: str,
             data_type: str,
-            value: int | float | None = None,
-            dependencies: list[IR] = []
+            value: int | float | str,
+            dependencies: list[IR]
         ) -> None:
         self.op: str = op
         self.data_type: str = data_type
-        self.value: int | float | None = value
+        self.value: int | float | str = value
         self.dependencies: list[IR] = dependencies
 
     def __repr__(self) -> str:
@@ -57,6 +57,8 @@ def preliminary_ir(head: Tensor) -> list[IR]:
     # Maybe as things are created, I can label them as load/store. This could help create directives down the line.
     # Further optimizations can be added that remove stores and replace them with loads if shapes match up/same operand.
     # Could be a curated second AST that indicates loads/stores and points to them. There can be overlap -> fusion in the future.
+    #### I think I should alter this so that we take in AST slices instead of just a node. That way we can trace movement ops when 
+    #### fusion does occur.
     for num, parent in enumerate(head._parents):
         temp: IR = IR(op = "ARG", data_type = parent._memory._data_type, value = f"operand_{num}", dependencies = [])
         tensor_pointers[parent] = temp
