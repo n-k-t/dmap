@@ -55,16 +55,16 @@ class Tensor:
         return child
     
     def add(self, tensor_2: Tensor) -> Tensor:
-        return self._binary_operation(tensor_2 = tensor_2, op_type = "ADDITION")
+        return self._binary_operation(tensor_2 = tensor_2, op_type = "ADD")
     
     def div(self, tensor_2: Tensor) -> Tensor:
-        return self._binary_operation(tensor_2 = tensor_2, op_type = "DIVISION")
+        return self._binary_operation(tensor_2 = tensor_2, op_type = "DIV")
     
     def mul(self, tensor_2: Tensor) -> Tensor:
-        return self._binary_operation(tensor_2 = tensor_2, op_type = "MULTIPLICATION")
+        return self._binary_operation(tensor_2 = tensor_2, op_type = "MUL")
     
     def sub(self, tensor_2: Tensor) -> Tensor:
-        return self._binary_operation(tensor_2 = tensor_2, op_type = "SUBTRACTION")
+        return self._binary_operation(tensor_2 = tensor_2, op_type = "SUB")
     
     # Reduction Operations
     def _reduction(self, axis: int, op_type: str) -> Tensor:
@@ -78,13 +78,13 @@ class Tensor:
         return child
     
     def max(self, axis: int) -> Tensor:
-        return self._reduction(axis = axis, op_type = "MAXIMUM")
+        return self._reduction(axis = axis, op_type = "MAX")
     
     def min(self, axis: int) -> Tensor:
-        return self._reduction(axis = axis, op_type = "MINIMUM")
+        return self._reduction(axis = axis, op_type = "MIN")
 
     def sum(self, axis: int) -> Tensor:
-        return self._reduction(axis = axis, op_type = "SUMMATION")
+        return self._reduction(axis = axis, op_type = "SUM")
     
     # Topological Sort
     def _topological_sort(self) -> list[Tensor]:

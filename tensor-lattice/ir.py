@@ -48,10 +48,10 @@ def bin_op_to_ir(child: Tensor, kernel: list[IR], tensors: dict[Tensor, IR], con
         store_load.append(temp_load)
         kernel.append(temp_load)
 
-    op_shortening: dict[str, str] = {"ADDITION": "ADD", "DIVISION": "DIV", \
-                                        "MULTIPLICATION": "MUL", "SUBTRACTION": "SUB"}
+    # op_shortening: dict[str, str] = {"ADDITION": "ADD", "DIVISION": "DIV", \
+    #                                     "MULTIPLICATION": "MUL", "SUBTRACTION": "SUB"}
 
-    temp_comb_op: IR = make_ir(op = op_shortening[child._op.op], data_type = "float", value = "", dependencies = store_load)
+    temp_comb_op: IR = make_ir(op = child._op.op, data_type = "float", value = "", dependencies = store_load)
     kernel.append(temp_comb_op)
 
     store_add: list[IR] = []
