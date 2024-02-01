@@ -1,6 +1,6 @@
 from __future__ import annotations
 from copy import deepcopy
-from ops import BinaryOp, MemoryOp, MovementOp, ReduceOp
+from ops import BinaryOp, ReduceOp
 from tensor import Tensor
 
 class IR:
@@ -23,7 +23,7 @@ class IR:
 def separate_kernels(end: Tensor) -> list[Tensor]:
     ast: list[Tensor] = end._topological_sort()
 
-    kernel_tensors: list[list[Tensor]] = []
+    kernel_tensors: list[Tensor] = []
 
     for tensor in ast:
         if isinstance(tensor._op, BinaryOp) or isinstance(tensor._op, ReduceOp):
@@ -56,11 +56,11 @@ def preliminary_ir(ast_slice: Tensor) -> list[IR]:
     control_flow: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
 
     for num, parent in enumerate(ast_slice._parents):
-        temp: IR = IR(op = "ARG", data_type = parent._memory._data_type, value = f"operand_{num}", dependencies = [])
+        temp: IR = IR(op = "ARG", data_type = parent._memory._data_type + "*", value = f"operand_{num}", dependencies = [])
         tensor_pointers[parent] = temp
         kernel.append(temp)
         control_flow["LOAD"].append(parent)
-    temp: IR = IR(op = "ARG", data_type = ast_slice._memory._data_type, value = "result", dependencies = [])
+    temp: IR = IR(op = "ARG", data_type = ast_slice._memory._data_type + "*", value = "result", dependencies = [])
     tensor_pointers[ast_slice] = temp
     kernel.append(temp)
     control_flow["STORE"].append(ast_slice)
@@ -70,7 +70,7 @@ def preliminary_ir(ast_slice: Tensor) -> list[IR]:
     const_pointers: dict[int, IR] = {0: IR(op = "CONST", data_type = "int", value = 0, dependencies = [])}
     kernel.append(const_pointers[0])
 
-    store_stride: list[int] = ast_slice._memory.stride
+    store_stride: list[int] = deepcopy(ast_slice._memory.stride)
     reduce_dim: int | None = None
 
     if isinstance(ast_slice._op, ReduceOp):
