@@ -49,7 +49,7 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
     temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [tensor_pointers[tensor], kernel[-1]])
     kernel.append(temp_load)
 
-
+# Look into the Phi instruction from LLVM as well as incorporating offsets into indices.
 def preliminary_ir(ast_slice: Tensor) -> list[IR]:
     kernel: list[IR] = []
     tensor_pointers: dict[Tensor, IR] = {}
