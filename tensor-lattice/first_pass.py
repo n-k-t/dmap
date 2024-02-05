@@ -46,6 +46,20 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
                 temp_op: IR = IR(op = "ADD", data_type = "int", value = "", dependencies = [store_add, temp_op])
                 kernel.append(temp_op)
             store_add = temp_op
+    if tensor._memory._offset != 0:
+        if tensor._memory._offset not in const_pointers:
+            temp: IR = IR(op = "CONST", data_type = "int", value = tensor._memory._offset, dependencies = [])
+            const_pointers[tensor._memory._offset] = temp
+            kernel.append(temp)
+        offset_op: IR = IR(op = "ADD", data_type = "int", value = "", dependencies = [temp_op, const_pointers[tensor._memory._offset]])
+        kernel.append(offset_op)
+    # deal with the mask and add in conditional statements for the modulo operations
+    # normal masks for row ["c", x] or ["r", y]
+    # can eventually deal with pointwise masks in the future for graphs.
+    # I need to also keep track of the dimension that is masked as well.
+    # If added, there will be less than/equal to instructions attached to if/then
+    # The result in these is then attached to the PHI instruction.
+    # {"r": [[dim-0, 0], [dim-2, 3]], "c": [], "p": []}
     temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [tensor_pointers[tensor], kernel[-1]])
     kernel.append(temp_load)
 

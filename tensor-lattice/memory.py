@@ -54,7 +54,7 @@ class Memory:
             self.view: list[int] = shape
             self.stride: list[int] = stride
         self._offset: int = 0
-        self._mask: list[list[int]] | None = None
+        self._mask: list[dict[str, list[int]]] | None = None
         self._contiguous: bool = check_contiguous(stride = self.stride, view = self.view)
         self._data_type: str = 'float'
         self._data_size: int = 4
