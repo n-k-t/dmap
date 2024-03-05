@@ -46,16 +46,29 @@ class Code:
                 else:
                     self.main_start += ", "
             elif i.op == "FOR":
-                self.main_body.append(("\t" * self.indent_level) + f"for (int {i.value} = {i.dependencies[0].value}; {i.value} < {i.dependencies[1].value}; {i.value}++)" + "{\n")
+                self.main_body.append(("\t" * self.indent_level) + f"for (int {i.value} = {i.dependencies[0].value}; {i.value} < {i.dependencies[1].value}; {i.value}++)" + " {\n")
                 self.indent_level += 1
             elif i.op == "END":
-                self.main_body.append(("\t" * (self.indent_level - 1)) + "}\n")
                 self.indent_level -= 1
-            elif i.op == "STORE":
+                self.main_body.append(("\t" * (self.indent_level)) + "}\n")
+            elif (i.op == "STORE") and ("phi" not in i.value):
                 if isinstance(self.child._op, ReduceOp):
                     self.main_body.append(gen_store(ir_store = i, indent_count = self.indent_level, reduce = True))
                 else:
                     self.main_body.append(gen_store(ir_store = i, indent_count = self.indent_level, reduce = False))
+            elif i.op == "IF/ELSE":
+                if i.dependencies[0].op == "CMPR":
+                    self.main_body.append(("\t" * self.indent_level) + f"if {gen_cmpr(ir_cmpr = i.dependencies[0])}" + " {\n")
+                elif i.dependencies[0].op == "OR":
+                    self.main_body.append(("\t" * self.indent_level) + f"if ({gen_or(ir_or = i.dependencies[0])})" + " {\n")
+                self.indent_level += 1
+                self.main_body.append(("\t" * self.indent_level) + f"{i.dependencies[1].value} = {gen_load(ir_load = i.dependencies[1].dependencies[1])};\n")
+                self.indent_level -= 1
+                self.main_body.append(("\t" * self.indent_level) + "} else {\n")
+                self.indent_level += 1
+                self.main_body.append(("\t" * self.indent_level) + f"{i.dependencies[2].value} = {float(i.dependencies[2].dependencies[1].value)};\n")
+                self.indent_level -= 1
+                self.main_body.append(("\t" * self.indent_level) + "}\n")
             
         return "".join(self.headers + [self.main_start] + self.main_body + self.main_end)
 
@@ -73,7 +86,10 @@ def gen_store(ir_store: IR, indent_count: int, reduce: bool) -> str:
         return store
 
 def gen_load(ir_load: IR) -> str:
-    return f"(*({ir_load.value} + " + gen_tensor_indices(load_op = ir_load.dependencies[1]) + "))"
+    if ir_load.op == "PHI":
+        return f"{ir_load.value}"
+    else:
+        return f"(*({ir_load.value} + " + gen_tensor_indices(load_op = ir_load.dependencies[1]) + "))"
 
 def gen_tensor_indices(load_op: IR) -> str:
     map_ops: dict[str, str] = {"ADD": "+", "DIV": "/", "MUL": "*", "SUB": "-"}
@@ -88,3 +104,14 @@ def gen_tensor_indices(load_op: IR) -> str:
         right_expression = str(load_op.dependencies[1].value)
     expression = f"({left_expression} {map_ops[load_op.op]} {right_expression})"
     return expression
+
+def gen_cmpr(ir_cmpr: IR) -> str:
+    return f"({ir_cmpr.dependencies[0].value} {ir_cmpr.value} {ir_cmpr.dependencies[1].value})"
+
+def gen_or(ir_or: IR) -> str:
+    if ir_or.dependencies[0].op == "OR":
+        left_side = gen_or(ir_or = ir_or.dependencies[0])
+    else:
+        left_side = gen_cmpr(ir_cmpr = ir_or.dependencies[0])
+    right_side = gen_cmpr(ir_cmpr = ir_or.dependencies[1])
+    return f"{left_side} || {right_side}"

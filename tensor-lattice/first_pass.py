@@ -32,7 +32,7 @@ def separate_kernels(end: Tensor) -> list[Tensor]:
     return kernel_tensors
 
 
-def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: list[int, IR], stride: list[int]) -> None:
+def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: list[int | IR], stride: list[int]) -> None:
     store_add: IR | None = None
 
     for index, dimension in enumerate(dimensions):
@@ -53,17 +53,64 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
             kernel.append(temp)
         offset_op: IR = IR(op = "ADD", data_type = "int", value = "", dependencies = [temp_op, const_pointers[tensor._memory._offset]])
         kernel.append(offset_op)
-    # deal with the mask and add in conditional statements for the modulo operations
-    # normal masks for row ["c", x] or ["r", y]
-    # can eventually deal with pointwise masks in the future for graphs.
-    # I need to also keep track of the dimension that is masked as well.
-    # If added, there will be less than/equal to instructions attached to if/then
-    # The result in these is then attached to the PHI instruction.
-    # {"r": [[dim-0, 0], [dim-2, 3]], "c": [], "p": []}
+    if (len(tensor._memory._mask["a"]) != 0) or (len(tensor._memory._mask["p"]) != 0):
+        temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [tensor_pointers[tensor], kernel[-1]])
+        kernel.append(temp_load)
+
+        comparison_count: int = 0
+        for axis in tensor._memory._mask["a"]:
+            if comparison_count > 0:
+                cmpr_holder: IR = kernel[-1]
+            if axis[2] not in const_pointers:
+                temp: IR = IR(op = "CONST", data_type = "int", value = axis[2], dependencies = [])
+                const_pointers[axis[2]] = temp
+                kernel.append(temp)
+            temp_cmpr: IR = IR(op = "CMPR", data_type = "", value = axis[1], dependencies = [dimensions[axis[0]], const_pointers[axis[2]]])
+            kernel.append(temp_cmpr)
+            if comparison_count > 0:
+                temp_or: IR = IR(op = "OR", data_type = "", value = "", dependencies = [cmpr_holder, temp_cmpr])
+                kernel.append(temp_or)
+            comparison_count += 1
+
+        store_last: IR = kernel[-1]
+        temp_phi: IR = IR(op = "PHI", data_type = "float", value = "phi_0", dependencies = [])
+        kernel.append(temp_phi)
+        store_1: IR = IR(op = "STORE", data_type = "float", value = "phi_0", dependencies = [temp_phi, temp_load])
+        kernel.append(store_1)
+        store_2: IR = IR(op = "STORE", data_type = "float", value = "phi_0", dependencies = [temp_phi, const_pointers[0]])
+        kernel.append(store_2)
+        temp_redirect: IR = IR(op = "IF/ELSE", data_type = "", value = "phi_0", dependencies = [store_last, store_1, store_2])
+        kernel.append(temp_redirect)
+
+    if (len(tensor._memory._mask["a"]) == 0) and (len(tensor._memory._mask["p"]) == 0):
+        temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [tensor_pointers[tensor], kernel[-1]])
+        kernel.append(temp_load)
+        # temp_temp: IR = IR(op = "TEMP", data_type = "float", value = "temp_0", dependencies = [])
+        # kernel.append(temp_temp)
+        # temp_store: IR = IR(op = "STORE", data_type = "float", value = "temp_0", dependencies = [kernel[-1], temp_load])
+        # kernel.append(temp_store)
+
+
+def indexing_store_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: list[int | IR], stride: list[int]) -> None:
+    store_add: IR | None = None
+
+    for index, dimension in enumerate(dimensions):
+            if stride[index] not in const_pointers:
+                temp: IR = IR(op = "CONST", data_type = "int", value = stride[index], dependencies = [])
+                const_pointers[tensor._memory.stride[index]] = temp
+                kernel.append(temp)
+            temp_op: IR = IR(op = "MUL", data_type = "int", value = "", dependencies = [dimension, const_pointers[stride[index]]])
+            kernel.append(temp_op)
+            if index != 0:
+                temp_op: IR = IR(op = "ADD", data_type = "int", value = "", dependencies = [store_add, temp_op])
+                kernel.append(temp_op)
+            store_add = temp_op
+
     temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [tensor_pointers[tensor], kernel[-1]])
     kernel.append(temp_load)
 
-# Look into the Phi instruction from LLVM as well as incorporating offsets into indices.
+
+
 def preliminary_ir(ast_slice: Tensor) -> list[IR]:
     kernel: list[IR] = []
     tensor_pointers: dict[Tensor, IR] = {}
@@ -81,7 +128,7 @@ def preliminary_ir(ast_slice: Tensor) -> list[IR]:
 
     global_shape: list[int] = ast_slice._parents[0]._memory.view
     dimensions: list[IR] = []
-    const_pointers: dict[int, IR] = {0: IR(op = "CONST", data_type = "int", value = 0, dependencies = [])}
+    const_pointers: dict[int | float, IR] = {0: IR(op = "CONST", data_type = "int/float", value = 0, dependencies = [])}
     kernel.append(const_pointers[0])
 
     store_stride: list[int] = deepcopy(ast_slice._memory.stride)
@@ -113,11 +160,14 @@ def preliminary_ir(ast_slice: Tensor) -> list[IR]:
 
     for parent in control_flow["LOAD"]:
         indexing_ir(tensor = parent, kernel = kernel, dimensions = dimensions, tensor_pointers = tensor_pointers, const_pointers = const_pointers, stride = parent._memory.stride)
-        load_tracker.append(kernel[-1])
+        if (len(parent._memory._mask["a"]) == 0) and (len(parent._memory._mask["p"]) == 0):
+            load_tracker.append(kernel[-1])
+        else:
+            load_tracker.append(kernel[-1].dependencies[1].dependencies[0])
 
     temp_op: IR = IR(op = ast_slice._op.op, data_type = ast_slice._memory._data_type, value = "", dependencies = [tensor for tensor in load_tracker])
     kernel.append(temp_op)
-    indexing_ir(tensor = ast_slice, kernel = kernel, dimensions = dimensions, tensor_pointers = tensor_pointers, const_pointers = const_pointers, stride = store_stride)
+    indexing_store_ir(tensor = ast_slice, kernel = kernel, dimensions = dimensions, tensor_pointers = tensor_pointers, const_pointers = const_pointers, stride = store_stride)
     kernel.append(IR(op = "STORE", data_type = ast_slice._memory._data_type, value = tensor_pointers[ast_slice].value, dependencies = [kernel[-1], temp_op]))
 
     return kernel
