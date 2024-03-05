@@ -6,7 +6,7 @@ with open(file = './README.md', mode = 'r') as f:
 setup(
     name = 'dmap',
     version = 'v0.0.1',
-    author = 'Nat Tomczak',
+    author = 'Nathaniel Tomczak',
     description = 'A dimensional mapping tool.',
     long_description = description,
     long_description_content_style = 'text/markdown',
