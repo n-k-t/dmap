@@ -1,7 +1,7 @@
 from __future__ import annotations
-from ops import BinaryOp, MemoryOp, MovementOp, ReduceOp
-from tensor import Tensor
-from first_pass import IR
+from dmap.ops import BinaryOp, MemoryOp, MovementOp, ReduceOp
+from dmap.tensor import Tensor
+from dmap.first_pass import IR
 
 def to_c_ir(kernel: list[IR]) -> list[IR]:
     for ir in kernel:

@@ -2,8 +2,8 @@ from __future__ import annotations
 import functools
 import operator
 from copy import deepcopy
-from memory import Memory
-from ops import BinaryOp, MemoryOp, MovementOp, ReduceOp, UnaryOp
+from dmap.memory import Memory
+from dmap.ops import BinaryOp, MemoryOp, MovementOp, ReduceOp, UnaryOp
 
 class Tensor:
     def __init__(

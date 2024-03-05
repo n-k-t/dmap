@@ -1,7 +1,7 @@
 from tensor import Tensor
-from ops import MemoryOp, BinaryOp, ReduceOp
-from first_pass import IR, preliminary_ir, separate_kernels
-from c_ir import to_c_ir
+from dmap.ops import MemoryOp, BinaryOp, ReduceOp
+from dmap.first_pass import IR, preliminary_ir, separate_kernels
+from dmap.c_ir import to_c_ir
 
 class Program:
     def __init__(self, head: Tensor) -> None:

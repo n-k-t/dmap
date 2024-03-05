@@ -1,5 +1,5 @@
 from tensor import Tensor
-from ops import ReduceOp
+from dmap.ops import ReduceOp
 import networkx as nx
 from networkx.drawing.nx_agraph import to_agraph
 

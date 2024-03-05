@@ -1,6 +1,6 @@
 import unittest
-from memory import Memory
-from tensor import Tensor
+from dmap.memory import Memory
+from dmap.tensor import Tensor
 
 class TestMemoryInit(unittest.TestCase):
     def test_memory_init(self):

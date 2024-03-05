@@ -31,11 +31,6 @@ def stride_from_view(
     stride.reverse()
     return stride
 
-# Create a shape compare for binary ops and figure how to track for movement ops in relation to the original tensor
-# Do we track indices to maintain order?
-# I think no, instead we should just create a reshape and unshape reshape option (they can specify the stride here)
-#### Maybe a permute as well? -- maybe unneeded, just include that in the unsafe?
-# FIGURE OUT THE RESHAPING OF THESE TENSORS! - mapping essentially.
 class Memory:
     def __init__(
             self, 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from copy import deepcopy
-from ops import BinaryOp, ReduceOp
-from tensor import Tensor
+from dmap.ops import BinaryOp, ReduceOp
+from dmap.tensor import Tensor
 
 class IR:
     def __init__(
@@ -85,10 +85,6 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
     if (len(tensor._memory._mask["a"]) == 0) and (len(tensor._memory._mask["p"]) == 0):
         temp_load: IR = IR(op = "LOAD", data_type = "float", value = tensor_pointers[tensor].value, dependencies = [tensor_pointers[tensor], kernel[-1]])
         kernel.append(temp_load)
-        # temp_temp: IR = IR(op = "TEMP", data_type = "float", value = "temp_0", dependencies = [])
-        # kernel.append(temp_temp)
-        # temp_store: IR = IR(op = "STORE", data_type = "float", value = "temp_0", dependencies = [kernel[-1], temp_load])
-        # kernel.append(temp_store)
 
 
 def indexing_store_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: list[int | IR], stride: list[int]) -> None:
