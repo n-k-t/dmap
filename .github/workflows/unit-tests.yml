@@ -14,12 +14,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set Up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     
-    - name: Cache Python Packages (Version ${{ matrix.python-version }})
+    - name: Cache Python Packages
       id: cache-python
       uses: actions/cache@v4
       with:
@@ -28,12 +28,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-unit-tests-packages-${{ hashFiles('**/setup.py') }}-
     
-    - name: Install Python Packages (Version ${{ matrix.python-version }})
+    - name: Install Python Packages
       if: ${{ steps.cache-python.outputs.cache-hit != 'true' }}
       continue-on-error: true
       run: |
         pip install -e '.[tests]'
     
-    - name: Test with pytest
+    - name: Test With pytest
       run: |
         python3 -m pytest -rA tests/tests.py
