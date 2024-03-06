@@ -36,18 +36,17 @@ class Memory:
             self, 
             shape: list[int], 
             safe_op: bool = True, 
-            stride: list[int] | None = None
-        ) -> Memory:
+            stride: list[int] = []
+        ) -> None:
         validate_shape(shape = shape)
         # All operations are safe except for the UNSAFE_RESHAPE.
         #### Safety denotes that there is no change in stride of the same block of memory.
         #### It does not guarantee the same shape.
+        self.view: list[int] = shape
         if safe_op:
-            self.view: list[int] = shape
             self.stride: list[int] = stride_from_view(view = self.view)
         else:
-            self.view: list[int] = shape
-            self.stride: list[int] = stride
+            self.stride = stride
         self._offset: int = 0
         self._mask: dict[str, list[list[int | str]]] = {"a": [], "p": []} # axis , gt/lt/eqt, index -> only supports 0.0 masking at the moment.
         self._contiguous: bool = check_contiguous(stride = self.stride, view = self.view)

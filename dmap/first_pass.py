@@ -13,7 +13,7 @@ class IR:
         ) -> None:
         self.op: str = op
         self.data_type: str = data_type
-        self.value: int | float | str = value
+        self.value: int | float | str = value # TODO: Make these only strings.
         self.dependencies: list[IR] = dependencies
 
     def __repr__(self) -> str:
@@ -32,8 +32,8 @@ def separate_kernels(end: Tensor) -> list[Tensor]:
     return kernel_tensors
 
 
-def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: list[int | IR], stride: list[int]) -> None:
-    store_add: IR | None = None
+def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: dict[int | float, IR], stride: list[int]) -> None:
+    store_add: IR = IR(op = "NONE", data_type = "", value = "", dependencies = [])
 
     for index, dimension in enumerate(dimensions):
             if stride[index] not in const_pointers:
@@ -43,12 +43,12 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
             temp_op: IR = IR(op = "MUL", data_type = "int", value = "", dependencies = [dimension, const_pointers[stride[index]]])
             kernel.append(temp_op)
             if index != 0:
-                temp_op: IR = IR(op = "ADD", data_type = "int", value = "", dependencies = [store_add, temp_op])
+                temp_op = IR(op = "ADD", data_type = "int", value = "", dependencies = [store_add, temp_op])
                 kernel.append(temp_op)
             store_add = temp_op
     if tensor._memory._offset != 0:
         if tensor._memory._offset not in const_pointers:
-            temp: IR = IR(op = "CONST", data_type = "int", value = tensor._memory._offset, dependencies = [])
+            temp = IR(op = "CONST", data_type = "int", value = tensor._memory._offset, dependencies = [])
             const_pointers[tensor._memory._offset] = temp
             kernel.append(temp)
         offset_op: IR = IR(op = "ADD", data_type = "int", value = "", dependencies = [temp_op, const_pointers[tensor._memory._offset]])
@@ -62,7 +62,7 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
             if comparison_count > 0:
                 cmpr_holder: IR = kernel[-1]
             if axis[2] not in const_pointers:
-                temp: IR = IR(op = "CONST", data_type = "int", value = axis[2], dependencies = [])
+                temp = IR(op = "CONST", data_type = "int", value = axis[2], dependencies = [])
                 const_pointers[axis[2]] = temp
                 kernel.append(temp)
             temp_cmpr: IR = IR(op = "CMPR", data_type = "", value = axis[1], dependencies = [dimensions[axis[0]], const_pointers[axis[2]]])
@@ -87,7 +87,7 @@ def indexing_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_p
         kernel.append(temp_load)
 
 
-def indexing_store_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: list[int | IR], stride: list[int]) -> None:
+def indexing_store_ir(tensor: Tensor, kernel: list[IR], dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: dict[int | float, IR], stride: list[int]) -> None:
     store_add: IR | None = None
 
     for index, dimension in enumerate(dimensions):
@@ -124,6 +124,7 @@ def preliminary_ir(ast_slice: Tensor) -> list[IR]:
 
     global_shape: list[int] = ast_slice._parents[0]._memory.view
     dimensions: list[IR] = []
+    # Maybe I should just store all consts as strings to make things easier.
     const_pointers: dict[int | float, IR] = {0: IR(op = "CONST", data_type = "int/float", value = 0, dependencies = [])}
     kernel.append(const_pointers[0])
 

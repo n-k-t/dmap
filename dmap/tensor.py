@@ -9,20 +9,20 @@ class Tensor:
     def __init__(
             self, 
             shape: list[int], 
-            stride: list[int] | None = None, 
+            stride: list[int] = [], 
             parents: list[Tensor] = [],
             op: BinaryOp | MemoryOp | MovementOp | ReduceOp | UnaryOp | None = None
-        ) -> Tensor:
+        ) -> None:
         # Control flow for setting both the operation and memory fields.
         if not op:
-            self._op: MemoryOp = MemoryOp()
-            self._memory: Memory = Memory(shape = shape, safe_op = True, stride = None)
+            self._op: BinaryOp | MemoryOp | MovementOp | ReduceOp | UnaryOp = MemoryOp()
+            self._memory: Memory = Memory(shape = shape, safe_op = True)
         elif op.op != "UNSAFE_RESHAPE":
-            self._op: BinaryOp | MovementOp | ReduceOp | UnaryOp = op
-            self._memory: Memory = Memory(shape = shape, safe_op = True, stride = None)
+            self._op = op
+            self._memory = Memory(shape = shape, safe_op = True)
         else:
-            self._op: MovementOp = op
-            self._memory: Memory = Memory(shape = shape, safe_op = False, stride = stride)
+            self._op = op
+            self._memory = Memory(shape = shape, safe_op = False, stride = stride)
         self._parents: list[Tensor] = parents
         self._children: list[Tensor] = []
 

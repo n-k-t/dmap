@@ -5,7 +5,7 @@ from __future__ import annotations
 class MemoryOp:
     def __init__(
             self
-        ) -> MemoryOp:
+        ) -> None:
         self.op: str = 'LOAD'
 
 # Valid movement operations include the following:
@@ -17,7 +17,7 @@ class MovementOp:
             op: str, 
             view: list[int],
             stride: list[int] | None = None
-        ) -> MovementOp:
+        ) -> None:
         self.op: str = op
         self.view: list[int] | None = view
         self.stride: list[int] | None = stride
@@ -29,7 +29,7 @@ class UnaryOp:
     def __init__(
             self, 
             op: str
-        ) -> UnaryOp:
+        ) -> None:
         self.op: str = op
 
 # Valid binary operations include the following:
@@ -41,7 +41,7 @@ class BinaryOp:
     def __init__(
             self, 
             op: str
-        ) -> BinaryOp:
+        ) -> None:
         self.op: str = op
 
 # Valid reduction operations include the following:
@@ -53,6 +53,6 @@ class ReduceOp:
             self, 
             op: str, 
             axis: int
-        ) -> ReduceOp:
+        ) -> None:
         self.op: str = op
         self.axis: int = axis
