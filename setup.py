@@ -9,7 +9,7 @@ setup(
     author = 'Nathaniel Tomczak',
     description = 'A dimensional mapping tool.',
     long_description = description,
-    long_description_content_style = 'text/markdown',
+    long_description_content_type = 'text/markdown',
     license = 'MIT',
     packages = ['dmap'],
     python_requires = '>=3.7',
