@@ -1,5 +1,5 @@
 from dmap.tensor import Tensor
-from dmap.ops import MemoryOp, BinaryOp, ReduceOp
+from dmap.ops import ReduceOp
 from dmap.first_pass import IR, preliminary_ir, separate_kernels
 from dmap.c_ir import to_c_ir
 
