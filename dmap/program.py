@@ -9,9 +9,9 @@ class Program:
         self.names: list[str] = []
         for tensor in self.ast_slices:
             if isinstance(tensor._op, ReduceOp):
-                self.names.append("_".join(["re"] + [str(i) for i in tensor._parents[0]._memory.view] + ["to"] + [str(i) for i in tensor._memory.view]))
+                self.names.append("_".join(["R"] + [str(i) for i in tensor._parents[0]._memory.view] + ["to"] + [str(i) for i in tensor._memory.view]))
             else:
-                self.names.append("_".join(["el"] + [str(i) for i in tensor._parents[0]._memory.view] + ["to"] + [str(i) for i in tensor._memory.view]))
+                self.names.append("_".join(["E"] + [str(i) for i in tensor._parents[0]._memory.view] + ["to"] + [str(i) for i in tensor._memory.view]))
         self.code: list[str] = []
         for tensor, name in zip(self.ast_slices, self.names):
             temp: Code = Code(tensor, name)
