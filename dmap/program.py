@@ -5,7 +5,7 @@ from dmap.c_ir import to_c_ir
 
 class Program:
     def __init__(self, head: Tensor) -> None:
-        self.ast_slices: list[Tensor] = separate_kernels(end = head)
+        self.ast_slices: list[Tensor] = separate_kernels(head)
         self.names: list[str] = []
         for tensor in self.ast_slices:
             if isinstance(tensor._op, ReduceOp):
