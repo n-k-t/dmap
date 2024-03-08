@@ -19,10 +19,19 @@ class IR:
     def __repr__(self) -> str:
         return f"OP: {self.op:>10},    DT: {self.data_type:>10},    VAL: {self.value:>10},    DEP: {[(i.op, i.value) for i in self.dependencies]}"
 
-
+# Maybe remove this and isntead separate kernels is in a parser and everything else is in the lexer.
 class Kernel:
     def __init__(self) -> None:
         self.ir: list[IR] = []
+
+class Parser:
+    def __init__(self) -> None:
+        pass
+
+
+class Lexer:
+    def __init__(self) -> None:
+        pass
 
 
 def separate_kernels(end: Tensor) -> list[Tensor]:
