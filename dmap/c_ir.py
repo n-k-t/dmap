@@ -5,7 +5,7 @@ def to_c_ir(kernel: list[IR]) -> list[IR]:
     for ir in kernel:
         if ir.op == "N-D" or ir.op == "N-R":
             ir.op = "FOR"
-            close_loop_to_ir(loop = ir, kernel = kernel)
+            close_loop_to_ir(ir, kernel)
     
     return kernel
 
@@ -20,5 +20,5 @@ def close_loop_to_ir(loop: IR, kernel: list[IR]) -> None:
                 loop_set.add(ir)
         delta_len = len(loop_set) - start_len
     insert_index: int = max([kernel.index(i) for i in loop_set]) + 1
-    temp_end: IR = IR(op = "END", data_type = "", value = "", dependencies = [loop])
+    temp_end: IR = IR("END", "", "", [loop])
     kernel.insert(insert_index, temp_end)

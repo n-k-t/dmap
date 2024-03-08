@@ -53,16 +53,16 @@ class Code:
                 self.main_body.append(("\t" * (self.indent_level)) + "}\n")
             elif (i.op == "STORE") and ("phi" not in i.value):
                 if isinstance(self.child._op, ReduceOp):
-                    self.main_body.append(gen_store(ir_store = i, indent_count = self.indent_level, reduce = True))
+                    self.main_body.append(gen_store(i, self.indent_level, True))
                 else:
-                    self.main_body.append(gen_store(ir_store = i, indent_count = self.indent_level, reduce = False))
+                    self.main_body.append(gen_store(i, self.indent_level, False))
             elif i.op == "IF/ELSE":
                 if i.dependencies[0].op == "CMPR":
-                    self.main_body.append(("\t" * self.indent_level) + f"if {gen_cmpr(ir_cmpr = i.dependencies[0])}" + " {\n")
+                    self.main_body.append(("\t" * self.indent_level) + f"if {gen_cmpr(i.dependencies[0])}" + " {\n")
                 elif i.dependencies[0].op == "OR":
-                    self.main_body.append(("\t" * self.indent_level) + f"if ({gen_or(ir_or = i.dependencies[0])})" + " {\n")
+                    self.main_body.append(("\t" * self.indent_level) + f"if ({gen_or(i.dependencies[0])})" + " {\n")
                 self.indent_level += 1
-                self.main_body.append(("\t" * self.indent_level) + f"{i.dependencies[1].value} = {gen_load(ir_load = i.dependencies[1].dependencies[1])};\n")
+                self.main_body.append(("\t" * self.indent_level) + f"{i.dependencies[1].value} = {gen_load(i.dependencies[1].dependencies[1])};\n")
                 self.indent_level -= 1
                 self.main_body.append(("\t" * self.indent_level) + "} else {\n")
                 self.indent_level += 1
@@ -74,14 +74,14 @@ class Code:
 
 def gen_store(ir_store: IR, indent_count: int, reduce: bool) -> str:
     if reduce:
-        left_side = ("\t" * indent_count) + gen_load(ir_load = ir_store.dependencies[0]) + " += "
-        right_side = gen_load(ir_load = ir_store.dependencies[1].dependencies[0]) + ";\n"
+        left_side = ("\t" * indent_count) + gen_load(ir_store.dependencies[0]) + " += "
+        right_side = gen_load(ir_store.dependencies[1].dependencies[0]) + ";\n"
         pleq = left_side + right_side
         return pleq
     else:
         map_ops: dict[str, str] = {"ADD": "+", "DIV": "/", "MUL": "*", "SUB": "-"}
-        left_side = ("\t" * indent_count) + gen_load(ir_load = ir_store.dependencies[0]) + " = "
-        right_side = gen_load(ir_load = ir_store.dependencies[1].dependencies[0]) + f" {map_ops[ir_store.dependencies[1].op]} " + gen_load(ir_load = ir_store.dependencies[1].dependencies[1]) + ";\n"
+        left_side = ("\t" * indent_count) + gen_load(ir_store.dependencies[0]) + " = "
+        right_side = gen_load(ir_store.dependencies[1].dependencies[0]) + f" {map_ops[ir_store.dependencies[1].op]} " + gen_load(ir_store.dependencies[1].dependencies[1]) + ";\n"
         store = left_side + right_side
         return store
 
@@ -89,17 +89,17 @@ def gen_load(ir_load: IR) -> str:
     if ir_load.op == "PHI":
         return f"{ir_load.value}"
     else:
-        return f"(*({ir_load.value} + " + gen_tensor_indices(load_op = ir_load.dependencies[1]) + "))"
+        return f"(*({ir_load.value} + " + gen_tensor_indices(ir_load.dependencies[1]) + "))"
 
 def gen_tensor_indices(load_op: IR) -> str:
     map_ops: dict[str, str] = {"ADD": "+", "DIV": "/", "MUL": "*", "SUB": "-"}
     int_ops: list[str] = ["ADD", "DIV", "MUL", "SUB"]
     if load_op.dependencies[0].op in int_ops:
-        left_expression = gen_tensor_indices(load_op = load_op.dependencies[0])
+        left_expression = gen_tensor_indices(load_op.dependencies[0])
     else:
         left_expression = str(load_op.dependencies[0].value)
     if load_op.dependencies[1].op in int_ops:
-        right_expression = gen_tensor_indices(load_op = load_op.dependencies[1])
+        right_expression = gen_tensor_indices(load_op.dependencies[1])
     else:
         right_expression = str(load_op.dependencies[1].value)
     expression = f"({left_expression} {map_ops[load_op.op]} {right_expression})"
@@ -110,8 +110,8 @@ def gen_cmpr(ir_cmpr: IR) -> str:
 
 def gen_or(ir_or: IR) -> str:
     if ir_or.dependencies[0].op == "OR":
-        left_side = gen_or(ir_or = ir_or.dependencies[0])
+        left_side = gen_or(ir_or.dependencies[0])
     else:
-        left_side = gen_cmpr(ir_cmpr = ir_or.dependencies[0])
-    right_side = gen_cmpr(ir_cmpr = ir_or.dependencies[1])
+        left_side = gen_cmpr(ir_or.dependencies[0])
+    right_side = gen_cmpr(ir_or.dependencies[1])
     return f"{left_side} || {right_side}"
