@@ -1,11 +1,11 @@
 from dmap.tensor import Tensor
 from dmap.ops import ReduceOp
-from dmap.first_pass import IR, preliminary_ir, separate_kernels
+from dmap.first_pass import IR, Parser
 from dmap.c_ir import to_c_ir
 
 class Program:
     def __init__(self, head: Tensor) -> None:
-        self.ast_slices: list[Tensor] = separate_kernels(head)
+        self.ast_slices: list[Tensor] = Parser(head).token_stream
         self.names: list[str] = []
         for tensor in self.ast_slices:
             if isinstance(tensor._op, ReduceOp):
@@ -33,7 +33,9 @@ class Code:
 
         self.main_start = f"{self.child._memory._data_type} {kernel_name}("
 
-        kernel: list[IR] = preliminary_ir(ast_slice = self.child)
+        # This is just a temporary fix
+        v = Parser(self.child)
+        kernel: list[IR] = v.preliminary_ir(ast_slice = self.child)
 
         c_kernel: list[IR] = to_c_ir(kernel = kernel)
 
