@@ -35,7 +35,7 @@ class Code:
 
         # This is just a temporary fix
         v = Parser(self.child)
-        kernel: list[IR] = v.preliminary_ir(ast_slice = self.child)
+        kernel: list[IR] = v.preliminary_ir(self.child)
 
         c_kernel: list[IR] = to_c_ir(kernel = kernel)
 

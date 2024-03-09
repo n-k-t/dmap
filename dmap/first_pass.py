@@ -42,9 +42,71 @@ class Lexer:
 class Parser:
     def __init__(self, head: Tensor) -> None:
         self.token_stream: list[Tensor] = Lexer(head).tokens
-        self.ir: list[list[IR]] = []
+        self.ast: list[list[IR]] = [self.preliminary_ir(token) for token in self.token_stream]
 
     # Replace the pointers here with a symbol table.
+    # symbol_table: dict[str | Tensor, IR]
+    def preliminary_ir(self, ast: Tensor) -> list[IR]:
+        kernel: Kernel = Kernel()
+        tensor_pointers: dict[Tensor, IR] = {}
+        control_flow: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
+
+        for num, parent in enumerate(ast._parents):
+            temp: IR = IR("ARG", parent._memory._data_type + "*", f"operand_{num}", [])
+            tensor_pointers[parent] = temp
+            kernel.ir.append(temp)
+            control_flow["LOAD"].append(parent)
+        temp: IR = IR("ARG", ast._memory._data_type + "*", "result", [])
+        tensor_pointers[ast] = temp
+        kernel.ir.append(temp)
+        control_flow["STORE"].append(ast)
+
+        global_shape: list[int] = ast._parents[0]._memory.view
+        dimensions: list[IR] = []
+        const_pointers: dict[str, IR] = {str(0): IR("CONST", "int/float", str(0), [])}
+        kernel.ir.append(const_pointers[str(0)])
+
+        store_stride: list[int] = deepcopy(ast._memory.stride)
+        reduce_dim: int | None = None
+
+        if isinstance(ast._op, ReduceOp):
+            reduce_dim: int = ast._op.axis
+            store_stride.insert(reduce_dim, 0)
+
+        for num, dimension in enumerate(global_shape):
+            if isinstance(ast._op, ReduceOp) and num == reduce_dim:
+                continue
+            elif str(dimension) not in const_pointers:
+                const_pointers[str(dimension)] = IR("CONST", "int", dimension, [])
+                kernel.ir.append(const_pointers[str(dimension)])
+            temp: IR = IR("N-D", "", f"axis_{num}", [const_pointers[str(0)], const_pointers[str(dimension)]])
+            dimensions.append(temp)
+            kernel.ir.append(temp)
+        
+        if isinstance(ast._op, ReduceOp):
+            if str(global_shape[reduce_dim]) not in const_pointers:
+                const_pointers[str(global_shape[reduce_dim])] = IR("CONST", "int", global_shape[reduce_dim], [])
+                kernel.ir.append(const_pointers[str(global_shape[reduce_dim])])
+            temp: IR = IR("N-R", "", f"axis_{reduce_dim}", [const_pointers[str(0)], const_pointers[str(global_shape[reduce_dim])]])
+            dimensions.insert(reduce_dim, temp)
+            kernel.ir.append(temp)
+
+        load_tracker: list[IR] = []
+
+        for parent in control_flow["LOAD"]:
+            self.indexing_ir(parent, kernel, dimensions, tensor_pointers, const_pointers, parent._memory.stride)
+            if (len(parent._memory._mask["a"]) == 0) and (len(parent._memory._mask["p"]) == 0):
+                load_tracker.append(kernel.ir[-1])
+            else:
+                load_tracker.append(kernel.ir[-1].dependencies[1].dependencies[0])
+
+        temp_op: IR = IR(ast._op.op, ast._memory._data_type, "", [tensor for tensor in load_tracker])
+        kernel.ir.append(temp_op)
+        self.indexing_store_ir(ast, kernel, dimensions, tensor_pointers, const_pointers, store_stride)
+        kernel.ir.append(IR("STORE", ast._memory._data_type, tensor_pointers[ast].value, [kernel.ir[-1], temp_op]))
+
+        return kernel.ir
+
     def indexing_ir(self, tensor: Tensor, kernel: Kernel, dimensions: list[IR], tensor_pointers: dict[Tensor, IR], const_pointers: dict[str, IR], stride: list[int]) -> None:
         store_add: IR = IR("NONE", "", "", [])
 
@@ -117,66 +179,3 @@ class Parser:
 
         temp_load: IR = IR("LOAD", "float", tensor_pointers[tensor].value, [tensor_pointers[tensor], kernel.ir[-1]])
         kernel.ir.append(temp_load)
-
-
-
-    def preliminary_ir(self, ast_slice: Tensor) -> list[IR]:
-        kernel: Kernel = Kernel()
-        tensor_pointers: dict[Tensor, IR] = {}
-        control_flow: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
-
-        for num, parent in enumerate(ast_slice._parents):
-            temp: IR = IR("ARG", parent._memory._data_type + "*", f"operand_{num}", [])
-            tensor_pointers[parent] = temp
-            kernel.ir.append(temp)
-            control_flow["LOAD"].append(parent)
-        temp: IR = IR("ARG", ast_slice._memory._data_type + "*", "result", [])
-        tensor_pointers[ast_slice] = temp
-        kernel.ir.append(temp)
-        control_flow["STORE"].append(ast_slice)
-
-        global_shape: list[int] = ast_slice._parents[0]._memory.view
-        dimensions: list[IR] = []
-        const_pointers: dict[str, IR] = {str(0): IR("CONST", "int/float", str(0), [])}
-        kernel.ir.append(const_pointers[str(0)])
-
-        store_stride: list[int] = deepcopy(ast_slice._memory.stride)
-        reduce_dim: int | None = None
-
-        if isinstance(ast_slice._op, ReduceOp):
-            reduce_dim: int = ast_slice._op.axis
-            store_stride.insert(reduce_dim, 0)
-
-        for num, dimension in enumerate(global_shape):
-            if isinstance(ast_slice._op, ReduceOp) and num == reduce_dim:
-                continue
-            elif str(dimension) not in const_pointers:
-                const_pointers[str(dimension)] = IR("CONST", "int", dimension, [])
-                kernel.ir.append(const_pointers[str(dimension)])
-            temp: IR = IR("N-D", "", f"axis_{num}", [const_pointers[str(0)], const_pointers[str(dimension)]])
-            dimensions.append(temp)
-            kernel.ir.append(temp)
-        
-        if isinstance(ast_slice._op, ReduceOp):
-            if str(global_shape[reduce_dim]) not in const_pointers:
-                const_pointers[str(global_shape[reduce_dim])] = IR("CONST", "int", global_shape[reduce_dim], [])
-                kernel.ir.append(const_pointers[str(global_shape[reduce_dim])])
-            temp: IR = IR("N-R", "", f"axis_{reduce_dim}", [const_pointers[str(0)], const_pointers[str(global_shape[reduce_dim])]])
-            dimensions.insert(reduce_dim, temp)
-            kernel.ir.append(temp)
-
-        load_tracker: list[IR] = []
-
-        for parent in control_flow["LOAD"]:
-            self.indexing_ir(parent, kernel, dimensions, tensor_pointers, const_pointers, parent._memory.stride)
-            if (len(parent._memory._mask["a"]) == 0) and (len(parent._memory._mask["p"]) == 0):
-                load_tracker.append(kernel.ir[-1])
-            else:
-                load_tracker.append(kernel.ir[-1].dependencies[1].dependencies[0])
-
-        temp_op: IR = IR(ast_slice._op.op, ast_slice._memory._data_type, "", [tensor for tensor in load_tracker])
-        kernel.ir.append(temp_op)
-        self.indexing_store_ir(ast_slice, kernel, dimensions, tensor_pointers, const_pointers, store_stride)
-        kernel.ir.append(IR("STORE", ast_slice._memory._data_type, tensor_pointers[ast_slice].value, [kernel.ir[-1], temp_op]))
-
-        return kernel.ir
