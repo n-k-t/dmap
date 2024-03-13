@@ -2,6 +2,8 @@ from __future__ import annotations
 from copy import deepcopy
 from dmap.ops import BinaryOp, ReduceOp
 from dmap.tensor import Tensor
+import functools
+import operator
 
 class IR:
     def __init__(
@@ -34,7 +36,16 @@ class Lexer:
 class Parser:
     def __init__(self, head: Tensor) -> None:
         self.token_stream: list[Tensor] = Lexer(head).tokens
+        self.flop_count: list[int] = [self.calc_flop(tensor) for tensor in self.token_stream]
         self.ast: list[list[IR]] = [self.preliminary_ir(token) for token in self.token_stream]
+
+    def calc_flop(self, tensor: Tensor) -> int:
+        if isinstance(tensor._op, ReduceOp) and (tensor._parents[0]._memory.view[tensor._op.axis] > 1):
+            op_adjustment: list[int] = deepcopy(tensor._parents[0]._memory.view)
+            op_adjustment[tensor._op.axis] -= 1
+            return functools.reduce(operator.mul, op_adjustment)
+        else:
+            return functools.reduce(operator.mul, tensor._parents[0]._memory.view)
 
     def preliminary_ir(self, token: Tensor) -> list[IR]:
         ast: list[IR] = []
