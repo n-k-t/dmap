@@ -6,13 +6,7 @@ import functools
 import operator
 
 class IR:
-    def __init__(
-            self,
-            op: str,
-            data_type: str,
-            value: str,
-            dependencies: list[IR]
-        ) -> None:
+    def __init__(self, op: str, data_type: str, value: str, dependencies: list[IR]) -> None:
         self.op: str = op
         self.data_type: str = data_type
         self.value: str = value
@@ -37,7 +31,7 @@ class Parser:
     def __init__(self, head: Tensor) -> None:
         self.token_stream: list[Tensor] = Lexer(head).tokens
         self.flop_count: list[int] = [self.calc_flop(tensor) for tensor in self.token_stream]
-        self.ast: list[list[IR]] = [self.preliminary_ir(token) for token in self.token_stream]
+        self.ast: list[list[IR]] = [self.emit_ir(token) for token in self.token_stream]
 
     def calc_flop(self, tensor: Tensor) -> int:
         if isinstance(tensor._op, ReduceOp) and (tensor._parents[0]._memory.view[tensor._op.axis] > 1):
@@ -47,18 +41,12 @@ class Parser:
         else:
             return functools.reduce(operator.mul, tensor._parents[0]._memory.view)
 
-    def preliminary_ir(self, token: Tensor) -> list[IR]:
+    def emit_ir(self, token: Tensor) -> list[IR]:
         ast: list[IR] = []
         symbol_table: dict[str | Tensor, IR] = {}
         ctx: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
 
-        for num, parent in enumerate(token._parents):
-            symbol_table[parent] = IR("ARG", parent._memory._data_type + "*", f"operand_{num}", [])
-            ast.append(symbol_table[parent])
-            ctx["LOAD"].append(parent)
-        symbol_table[token] = IR("ARG", token._memory._data_type + "*", "result", [])
-        ast.append(symbol_table[token])
-        ctx["STORE"].append(token)
+        self.discover_ctx(token, ctx, symbol_table, ast)
 
         global_shape: list[int] = token._parents[0]._memory.view
         dimensions: list[IR] = []
@@ -106,6 +94,15 @@ class Parser:
 
         return ast
 
+    def discover_ctx(self, child: Tensor, ctx: dict[str, list[Tensor]], symbol_table: dict[str | Tensor, IR], ast: list[IR]) -> dict[str, list[Tensor]]:
+        for num, parent in enumerate(child._parents):
+            symbol_table[parent] = IR("ARG", parent._memory._data_type + "*", f"operand_{num}", [])
+            ast.append(symbol_table[parent])
+            ctx["LOAD"].append(parent)
+        symbol_table[child] = IR("ARG", child._memory._data_type + "*", "result", [])
+        ast.append(symbol_table[child])
+        ctx["STORE"].append(child)
+    
     def indexing_ir(self, tensor: Tensor, ast: list[IR], dimensions: list[IR], symbol_table: dict[str | Tensor, IR], stride: list[int]) -> None:
         store_add: IR = IR("NONE", "", "", [])
 
