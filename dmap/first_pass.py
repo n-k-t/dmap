@@ -56,18 +56,24 @@ class Parser:
 
     def emit_ir(self, token: Tensor) -> list[IR]:
         ast: list[IR] = []
-        symbol_table: dict[str | Tensor, IR] = {}
+        symbol_table: dict[str | Tensor, IR | list[IR]] = {}
         ctx: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
 
         self.discover_ctx(token, ctx, symbol_table, ast)
 
+        # Maybe make a dimension checker in case there is only one axis of size 1, so a scalar value?
         # self.map_dims(token, symbol_table, ast)
 
+        # Place the dimensions within the symbol table as an ordered list of IR, labelled "axes" or something of the sort
         global_shape: list[int] = token._parents[0]._memory.view
         dimensions: list[IR] = []
         symbol_table[str("0")] = IR("CONST", "int", str(0), [])
         ast.append(symbol_table[str(0)])
 
+        # Can we rename his as "out_stride" and then store in the symbol table?
+        # Or remove entirely and don't insert a "0" in the non-existent dimension, can instead do it dynamically
+        # at some point below as the tensor is passed to the funciton. Just need to track which axis to apply it to.
+        # This could become harder in the future if things are getting reshaped within fused operations.
         store_stride: list[int] = deepcopy(token._memory.stride)
         reduce_dimension: int | None = None
 
@@ -93,6 +99,7 @@ class Parser:
             dimensions.insert(reduce_dimension, reduce_axis)
             ast.append(reduce_axis)
 
+        # Should be able to get rid of this by making updated "LOAD" entries in the symbol table    
         load_tracker: list[IR] = []
 
         for parent in ctx["LOAD"]:
