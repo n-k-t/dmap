@@ -41,12 +41,27 @@ class Parser:
         else:
             return functools.reduce(operator.mul, tensor._parents[0]._memory.view)
 
+    def discover_ctx(self, child: Tensor, ctx: dict[str, list[Tensor]], symbol_table: dict[str | Tensor, IR], ast: list[IR]) -> dict[str, list[Tensor]]:
+        for num, parent in enumerate(child._parents):
+            symbol_table[parent] = IR("ARG", parent._memory._data_type + "*", f"operand_{num}", [])
+            ast.append(symbol_table[parent])
+            ctx["LOAD"].append(parent)
+        symbol_table[child] = IR("ARG", child._memory._data_type + "*", "result", [])
+        ast.append(symbol_table[child])
+        ctx["STORE"].append(child)
+
+    # map the ND dimensions and add in the NR reduce dimension last if there is one.
+    def map_dims(self, tensor: Tensor, symbol_table: dict[str | Tensor, IR], ast: list[IR]) -> None:
+        pass
+
     def emit_ir(self, token: Tensor) -> list[IR]:
         ast: list[IR] = []
         symbol_table: dict[str | Tensor, IR] = {}
         ctx: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
 
         self.discover_ctx(token, ctx, symbol_table, ast)
+
+        # self.map_dims(token, symbol_table, ast)
 
         global_shape: list[int] = token._parents[0]._memory.view
         dimensions: list[IR] = []
@@ -93,15 +108,6 @@ class Parser:
         ast.append(IR("STORE", token._memory._data_type, symbol_table[token].value, [ast[-1], temp_op]))
 
         return ast
-
-    def discover_ctx(self, child: Tensor, ctx: dict[str, list[Tensor]], symbol_table: dict[str | Tensor, IR], ast: list[IR]) -> dict[str, list[Tensor]]:
-        for num, parent in enumerate(child._parents):
-            symbol_table[parent] = IR("ARG", parent._memory._data_type + "*", f"operand_{num}", [])
-            ast.append(symbol_table[parent])
-            ctx["LOAD"].append(parent)
-        symbol_table[child] = IR("ARG", child._memory._data_type + "*", "result", [])
-        ast.append(symbol_table[child])
-        ctx["STORE"].append(child)
     
     def indexing_ir(self, tensor: Tensor, ast: list[IR], dimensions: list[IR], symbol_table: dict[str | Tensor, IR], stride: list[int]) -> None:
         store_add: IR = IR("NONE", "", "", [])
