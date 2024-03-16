@@ -52,11 +52,36 @@ class Parser:
 
     # map the ND dimensions and add in the NR reduce dimension last if there is one.
     def map_dims(self, tensor: Tensor, symbol_table: dict[str | Tensor, IR], ast: list[IR]) -> None:
+        pre_op_shape: list[int] = tensor._parents[0]._memory.view
+        symbol_table["out_stride"] = deepcopy(tensor._memory.stride)
+        symbol_table["loop_axes"] = []
+        symbol_table[str("0")] = IR("CONST", "int", str(0), [])
+        ast.append(symbol_table[str(0)])
+        reduce_dim: int = -1
+        if isinstance(tensor._op, ReduceOp):
+            reduce_dim: int = tensor._op.axis
+            symbol_table["out_stride"].insert(reduce_dim, 0)
+        for num, dimension in enumerate(pre_op_shape):
+            if isinstance(tensor._op, ReduceOp) and num == reduce_dim:
+                continue
+            elif str(dimension) not in symbol_table:
+                symbol_table[str(dimension)] = IR("CONST", "int", dimension, [])
+                ast.append(symbol_table[str(dimension)])
+            non_reduce_axis: IR = IR("N-D", "", f"axis_{num}", [symbol_table[str(0)], symbol_table[str(dimension)]])
+            symbol_table["loop_axes"].append(non_reduce_axis)
+            ast.append(non_reduce_axis)
+        if isinstance(tensor._op, ReduceOp):
+            if str(pre_op_shape[reduce_dim]) not in symbol_table:
+                symbol_table[str(pre_op_shape[reduce_dim])] = IR("CONST", "int", pre_op_shape[reduce_dim], [])
+                ast.append(symbol_table[str(pre_op_shape[reduce_dim])])
+            reduce_axis: IR = IR("N-R", "", f"axis_{reduce_dim}", [symbol_table[str(0)], symbol_table[str(pre_op_shape[reduce_dim])]])
+            pre_op_shape.insert(reduce_dim, reduce_axis)
+            ast.append(reduce_axis)
         pass
 
     def emit_ir(self, token: Tensor) -> list[IR]:
         ast: list[IR] = []
-        symbol_table: dict[str | Tensor, IR | list[IR]] = {}
+        symbol_table: dict[str | Tensor, IR | list[IR] | list[int]] = {}
         ctx: dict[str, list[Tensor]] = {"LOAD": [], "STORE": []}
 
         self.discover_ctx(token, ctx, symbol_table, ast)
@@ -70,9 +95,9 @@ class Parser:
         symbol_table[str("0")] = IR("CONST", "int", str(0), [])
         ast.append(symbol_table[str(0)])
 
-        # Can we rename his as "out_stride" and then store in the symbol table?
+        # Can we rename this as "out_stride" and then store in the symbol table?
         # Or remove entirely and don't insert a "0" in the non-existent dimension, can instead do it dynamically
-        # at some point below as the tensor is passed to the funciton. Just need to track which axis to apply it to.
+        # at some point below as the tensor is passed to the function. Just need to track which axis to apply it to.
         # This could become harder in the future if things are getting reshaped within fused operations.
         store_stride: list[int] = deepcopy(token._memory.stride)
         reduce_dimension: int | None = None
