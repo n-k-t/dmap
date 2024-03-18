@@ -36,9 +36,8 @@ class Code:
 
         # This is just a temporary fix
         v = Parser(self.child)
-        kernel: list[IR] = v.emit_ir(self.child)
 
-        c_kernel: list[IR] = to_c_ir(kernel = kernel)
+        c_kernel: list[IR] = to_c_ir(kernel = v.ast[0])
 
         for i in c_kernel:
             if i.op == "ARG":

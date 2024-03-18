@@ -52,6 +52,8 @@ class Memory:
         else:
             self.stride = stride
         self._offset: int = 0
+        #### NOTE: Masking after performing a unary/binary/reduce op
+        ####        is dangerous as it updates the final tensor.
         self._mask: dict[str, list[list[int | str]]] = {"a": [], "p": []} # axis , gt/lt/eqt, index -> only supports 0.0 masking at the moment.
         self._contiguous: bool = check_contiguous(self.stride, self.view)
         self._data_type: str = 'float'
