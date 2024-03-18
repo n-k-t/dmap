@@ -86,20 +86,6 @@ class Parser:
             symbol_table["loop_axes"].insert(reduce_dim, reduce_axis)
             ast.append(reduce_axis)
 
-    
-    def find_indices(self, tensor: Tensor, ast: list[IR], symbol_table: dict[str | Tensor, IR | list[IR] | list[int]], ctx: dict[str, list[Tensor]]) -> None:
-        self.from_view_and_shape(tensor, ast, symbol_table, ctx)
-
-        if tensor._memory._offset != 0:
-            self.account_for_offset(tensor, ast, symbol_table)
-            
-        if (len(tensor._memory._mask["a"]) != 0) or (len(tensor._memory._mask["p"]) != 0):
-            self.render_mask(tensor, ast, symbol_table)
-
-        if (len(tensor._memory._mask["a"]) == 0) and (len(tensor._memory._mask["p"]) == 0):
-            temp_load: IR = IR("LOAD", "float", symbol_table[tensor].value, [symbol_table[tensor], ast[-1]])
-            ast.append(temp_load)
-
 
     def from_view_and_shape(self, tensor: Tensor, ast: list[IR], symbol_table: dict[str | Tensor, IR | list[IR] | list[int]], ctx: dict[str, list[Tensor]]) -> None:
         if tensor in ctx["LOAD"]:
@@ -163,6 +149,20 @@ class Parser:
         ast.append(store_2)
         temp_redirect: IR = IR("IF/ELSE", "", f"phi_{phi_count}", [store_last, store_1, store_2])
         ast.append(temp_redirect)
+
+
+    def find_indices(self, tensor: Tensor, ast: list[IR], symbol_table: dict[str | Tensor, IR | list[IR] | list[int]], ctx: dict[str, list[Tensor]]) -> None:
+        self.from_view_and_shape(tensor, ast, symbol_table, ctx)
+
+        if tensor._memory._offset != 0:
+            self.account_for_offset(tensor, ast, symbol_table)
+            
+        if (len(tensor._memory._mask["a"]) != 0) or (len(tensor._memory._mask["p"]) != 0):
+            self.render_mask(tensor, ast, symbol_table)
+
+        if (len(tensor._memory._mask["a"]) == 0) and (len(tensor._memory._mask["p"]) == 0):
+            temp_load: IR = IR("LOAD", "float", symbol_table[tensor].value, [symbol_table[tensor], ast[-1]])
+            ast.append(temp_load)
 
 
     def emit_ir(self, token: Tensor) -> list[IR]:
