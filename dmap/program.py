@@ -3,6 +3,7 @@ from dmap.ops import ReduceOp
 from dmap.first_pass import IR, Parser
 from dmap.c_ir import to_c_ir
 
+
 class Program:
     def __init__(self, head: Tensor) -> None:
         self.ast_slices: list[Tensor] = Parser(head).token_stream
@@ -35,7 +36,7 @@ class Code:
 
         # This is just a temporary fix
         v = Parser(self.child)
-        kernel: list[IR] = v.preliminary_ir(self.child)
+        kernel: list[IR] = v.emit_ir(self.child)
 
         c_kernel: list[IR] = to_c_ir(kernel = kernel)
 

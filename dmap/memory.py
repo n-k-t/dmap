@@ -2,6 +2,7 @@ from __future__ import annotations
 import functools
 import operator
 
+
 def validate_shape(
         shape: list[int]
     ) -> None:
@@ -11,7 +12,8 @@ def validate_shape(
         raise TypeError("Your memory shape descriptors are not all integers.")
     if functools.reduce(operator.mul, shape) <= 0:
         raise ValueError("You can't have negatives or zeros describing your memory structure.")
-    
+
+
 def check_contiguous(
         stride: list[int], 
         view: list[int]
@@ -22,6 +24,7 @@ def check_contiguous(
         return False
     return True
 
+
 def stride_from_view(
         view: list[int]
     ) -> list[int]:
@@ -30,6 +33,7 @@ def stride_from_view(
         stride.append(stride[i] * view[-(i + 1)])
     stride.reverse()
     return stride
+
 
 class Memory:
     def __init__(

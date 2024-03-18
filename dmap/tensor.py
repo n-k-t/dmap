@@ -5,6 +5,7 @@ from copy import deepcopy
 from dmap.memory import Memory
 from dmap.ops import BinaryOp, MemoryOp, MovementOp, ReduceOp, UnaryOp
 
+
 class Tensor:
     def __init__(
             self, 
@@ -26,6 +27,7 @@ class Tensor:
         self._parents: list[Tensor] = parents
         self._children: list[Tensor] = []
 
+
     # Memory Operations
     def safe_reshape(self, new_shape: list[int]) -> Tensor:
         new_size = functools.reduce(operator.mul, new_shape)
@@ -37,6 +39,7 @@ class Tensor:
         self._children.append(child)
         return child
 
+
     # Permute and expand are unsafe reshapes.
     def _unsafe_reshape(self, new_shape: list[int], new_stride: list[int]) -> Tensor:
         assert functools.reduce(operator.mul, new_shape) > 0, "The specified reshape cannot be performed as it has atleast one dimension of size zero."
@@ -45,6 +48,7 @@ class Tensor:
         child = Tensor(new_shape, new_stride, [self], operation)
         self._children.append(child)
         return child
+
 
     # Binary Operations
     def _binary_operation(self, tensor_2: Tensor, op_type: str) -> Tensor:
@@ -56,18 +60,23 @@ class Tensor:
         tensor_2._children.append(child)
         return child
     
+
     def add(self, tensor_2: Tensor) -> Tensor:
         return self._binary_operation(tensor_2, "ADD")
     
+
     def div(self, tensor_2: Tensor) -> Tensor:
         return self._binary_operation(tensor_2, "DIV")
     
+
     def mul(self, tensor_2: Tensor) -> Tensor:
         return self._binary_operation(tensor_2, "MUL")
     
+
     def sub(self, tensor_2: Tensor) -> Tensor:
         return self._binary_operation(tensor_2, "SUB")
     
+
     # Reduction Operations
     def _reduction(self, axis: int, op_type: str) -> Tensor:
         assert axis >= 0, "The reduction operation cannot be perfomed along a negative axis."
@@ -79,14 +88,18 @@ class Tensor:
         self._children.append(child)
         return child
     
+
     def max(self, axis: int) -> Tensor:
         return self._reduction(axis = axis, op_type = "MAX")
     
+
     def min(self, axis: int) -> Tensor:
         return self._reduction(axis = axis, op_type = "MIN")
 
+
     def sum(self, axis: int) -> Tensor:
         return self._reduction(axis = axis, op_type = "SUM")
+    
     
     # Topological Sort
     def _topological_sort(self) -> list[Tensor]:

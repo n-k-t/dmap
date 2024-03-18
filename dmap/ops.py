@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 # Valid memory operations include the following:
 #### LOAD
 class MemoryOp:
@@ -7,6 +8,7 @@ class MemoryOp:
             self
         ) -> None:
         self.op: str = 'LOAD'
+
 
 # Valid movement operations include the following:
 #### SAFE_RESHAPE
@@ -22,6 +24,7 @@ class MovementOp:
         self.view: list[int] | None = view
         self.stride: list[int] | None = stride
 
+
 # Valid unary operations include the following:
 #### ABSOLUTE_VALUE
 #### LOGARITHM
@@ -31,6 +34,7 @@ class UnaryOp:
             op: str
         ) -> None:
         self.op: str = op
+
 
 # Valid binary operations include the following:
 #### ADDITION
@@ -43,6 +47,7 @@ class BinaryOp:
             op: str
         ) -> None:
         self.op: str = op
+
 
 # Valid reduction operations include the following:
 #### MAXIMUM

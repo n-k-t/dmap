@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dmap.first_pass import IR
 
+
 def to_c_ir(kernel: list[IR]) -> list[IR]:
     for ir in kernel:
         if ir.op == "N-D" or ir.op == "N-R":
