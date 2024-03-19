@@ -26,7 +26,7 @@ class MovementOp:
 
 
 # Valid unary operations include the following:
-#### ABSOLUTE_VALUE
+#### EXPONENTIAL
 #### LOGARITHM
 class UnaryOp:
     def __init__(
