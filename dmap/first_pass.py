@@ -35,6 +35,10 @@ class Parser:
         self.token_stream: list[Tensor] = Lexer(head).tokens
         self.flop_count: list[int] = [self.calc_flop(tensor) for tensor in self.token_stream]
         self.ast: list[list[IR]] = [self.emit_ir(token) for token in self.token_stream]
+        # Maybe create a parse tree (or syntax tree) the defines the kernel syntax and then this can be further passed along
+        # to a semantic analyzer that essentially does what has already been outlined with the parser. The parse tree would 
+        # likely be where fusion/mul-add operations come into play. This can all be combined into the parser, just have to think
+        # through the structure.
 
 
     def calc_flop(self, tensor: Tensor) -> int:
