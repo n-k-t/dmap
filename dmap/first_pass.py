@@ -15,30 +15,43 @@ class IR:
 
 
     def __repr__(self) -> str:
-        return f"OP: {self.op:>10},    DT: {self.data_type:>10},    VAL: {self.value:>10},    DEP: {[(i.op, i.value) for i in self.dependencies]}"
+        return f"OP: {self.op:>10},\tDT: {self.data_type:>10},\tVAL: {self.value:>10},\tDEP: {[(i.op, i.value) for i in self.dependencies]}"
 
 class Lexer:
     def __init__(self, head: Tensor) -> None:
-        self.tokens: list[Tensor] = self.separate_tensors(head)
+        self.tokens: list[Tensor] = self.lexical_analysis(head)
 
-
-    def separate_tensors(self, head: Tensor) -> list[Tensor]:
-        dag: list[Tensor] = head._topological_sort()
-        tensors: list[Tensor] = []
-        for tensor in dag:
-            if isinstance(tensor._op, BinaryOp) or isinstance(tensor._op, ReduceOp):
-                tensors.append(tensor)
-        return tensors
+    # Tokens should be operations instead of tensors. Figure out a good way to represent these?
+    # Do I store the input/output tensors in the symbol table so we know what they are associated with?
+    # This could drive fusion down the line.
+    # Ops and tensors added to symbol table to point around?
+    # Would this allow us to make sequential connections to better indicate what can/cannot be fused?
+    # A load op token would just be skipped at the moment, etc.
+    # Can create different operations/fusion operations by combining tokens.
+    # Make sure dependencies are ordered.
+    def lexical_analysis(self, head: Tensor) -> list[Tensor]:
+        return head._topological_sort()
+        
 
 class Parser:
     def __init__(self, head: Tensor) -> None:
-        self.token_stream: list[Tensor] = Lexer(head).tokens
+        self.token_stream: list[Tensor] = self.syntactic_analysis(Lexer(head).tokens)
         self.flop_count: list[int] = [self.calc_flop(tensor) for tensor in self.token_stream]
         self.ast: list[list[IR]] = [self.emit_ir(token) for token in self.token_stream]
-        # Maybe create a parse tree (or syntax tree) the defines the kernel syntax and then this can be further passed along
-        # to a semantic analyzer that essentially does what has already been outlined with the parser. The parse tree would 
-        # likely be where fusion/mul-add operations come into play. This can all be combined into the parser, just have to think
-        # through the structure.
+
+
+    def syntactic_analysis(self, tokens: list[Tensor]) -> list[Tensor]:
+        tensors: list[Tensor] = []
+        for token in tokens:
+            if isinstance(token._op, BinaryOp) or isinstance(token._op, ReduceOp):
+                tensors.append(token)
+        return tensors
+    
+    # Currently does not do anything as we aren't taking the type from the tensor, it is assumed.
+    def semantic_analysis(self, ast: list[IR], load_type: str) -> None:
+        for ir in ast:
+            if (ir.op == "LOAD") and (ir.data_type != load_type):
+                raise ValueError("Can't operate on tensors of different types.")
 
 
     def calc_flop(self, tensor: Tensor) -> int:
@@ -190,5 +203,7 @@ class Parser:
         ast.append(temp_op)
         self.find_indices(token, ast, symbol_table, ctx)
         ast.append(IR("STORE", token._memory._data_type, symbol_table[token].value, [ast[-1], temp_op]))
+
+        self.semantic_analysis(ast, token._memory._data_type)
 
         return ast
