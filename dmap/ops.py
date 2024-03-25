@@ -7,7 +7,8 @@ class Op:
                 op: Memory|Movement|Unary|Binary|Reduce, 
                 view: Optional[list[int]] = None, 
                 stride: Optional[list[int]] = None,
-                axis: Optional[int] = None) -> None:
+                axis: Optional[int] = None
+                ) -> None:
         self.op = op
         self.view = view
         self.stride = stride
