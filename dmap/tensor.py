@@ -3,20 +3,21 @@ import functools
 import operator
 from copy import deepcopy
 from dmap.memory import Memory
-from dmap.ops import BinaryOp, MemoryOp, MovementOp, ReduceOp, UnaryOp
+from dmap.ops import Op, Memory, Movement, Unary, Binary, Reduce
+from typing import Optional
 
-
+# Remove the memory object, instead just bring everything into here
 class Tensor:
     def __init__(
             self, 
             shape: list[int], 
             stride: list[int] = [], 
             parents: list[Tensor] = [],
-            op: BinaryOp | MemoryOp | MovementOp | ReduceOp | UnaryOp | None = None
+            op: Optional[Op] = None
         ) -> None:
         # Control flow for setting both the operation and memory fields.
         if not op:
-            self._op: BinaryOp | MemoryOp | MovementOp | ReduceOp | UnaryOp = MemoryOp()
+            self._op: = MemoryOp()
             self._memory: Memory = Memory(shape, True)
         elif op.op != "UNSAFE_RESHAPE":
             self._op = op
@@ -27,6 +28,7 @@ class Tensor:
         self._parents: list[Tensor] = parents
         self._children: list[Tensor] = []
 
+    # Initialization functions.
 
     # Memory Operations
     def safe_reshape(self, new_shape: list[int]) -> Tensor:
