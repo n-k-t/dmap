@@ -6,7 +6,7 @@ from dmap.memory import Memory
 from dmap.ops import Op, Memory, Movement, Unary, Binary, Reduce
 from typing import Optional
 
-# Remove the memory object, instead just bring everything into here
+
 class Tensor:
     def __init__(
             self, 
@@ -27,7 +27,7 @@ class Tensor:
             self.stride = self.stride_from_view(view)
             # self._memory = Memory(shape, True)
         else:
-            self._op = op
+            self.op = op
             self.stride = stride
             # self._memory = Memory(shape, False, stride)
         self.view = view
@@ -122,8 +122,11 @@ class Tensor:
         assert axis <= len(self.view) - 1, "The reduction operation cannot be performed because the axis provided is greater than the number of dimensions in the tensor."
         # operation = ReduceOp(op_type, axis)
         operation = Op(op_type, axis = axis)
-        new_shape = deepcopy(self.view)
-        new_shape.pop(axis)
+        if len(self.view) == 1:
+            new_shape = [1]
+        else:
+            new_shape = deepcopy(self.view)
+            new_shape.pop(axis)
         child = Tensor(view = new_shape, parents = [self], op = operation)
         self.children.append(child)
         return child
