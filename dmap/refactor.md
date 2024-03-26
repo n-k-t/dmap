@@ -5,6 +5,7 @@ The plan for refactoring
 - Make enums to represent all of the different types of operations (for each sub group)
 - Carry these changes over to the Tensor class
 - rewrite the lexer to break everything down into tokens (likely just ops, but have to think about this)
+ - make dialects for specific languages?
     - I think scrap the lexer and parser concepts, the lexing is done by python/the user, the parsing and 
     - syntactic analysis is done by the pre-defined rules (add semantic analysis in later), so we just need to schedule and load everything
     - the same ideas as below hold, but just don't worry about the naming so much
