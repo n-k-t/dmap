@@ -3,18 +3,23 @@ from enum import auto, Enum
 from typing import Optional
 
 class Op:
-    def __init__(self, 
-                op: Memory|Movement|Unary|Binary|Reduce, 
-                view: Optional[list[int]] = None, 
-                stride: Optional[list[int]] = None,
-                axis: Optional[int] = None
+    def __init__(
+                    self, 
+                    op: Memory|Movement|Unary|Binary|Reduce|Fusion, 
+                    view: Optional[list[int]] = None, 
+                    stride: Optional[list[int]] = None,
+                    axis: Optional[int] = None, 
+                    flop: int = 0
                 ) -> None:
         self.op = op
         self.view = view
         self.stride = stride
         self.axis = axis
+        self.num_flop = flop
 
-
+class Fusion():
+    def __init__(self) -> None:
+        pass
 
 # Valid memory operations include the following:
 #### LOAD

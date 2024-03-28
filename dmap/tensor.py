@@ -92,7 +92,8 @@ class Tensor:
     def _binary_operation(self, tensor_2: Tensor, op_type: Binary) -> Tensor:
         assert self.view == tensor_2.view, "The operation cannot be performed because the two tensors do not have identical shapes."
         # operation = BinaryOp(op_type)
-        operation = Op(op_type)
+        num_flop: int = functools.reduce(operator.mul, self.view)
+        operation = Op(op_type, flop = num_flop)
         # TODO: Can't remove these labels because stride is ahead. Maybe move it to the back.
         child = Tensor(view = self.view, parents = [self, tensor_2], op = operation)
         self.children.append(child)
@@ -121,7 +122,13 @@ class Tensor:
         assert axis >= 0, "The reduction operation cannot be perfomed along a negative axis."
         assert axis <= len(self.view) - 1, "The reduction operation cannot be performed because the axis provided is greater than the number of dimensions in the tensor."
         # operation = ReduceOp(op_type, axis)
-        operation = Op(op_type, axis = axis)
+        if self.view[axis] > 1:
+            op_adjustment: list[int] = deepcopy(self.view)
+            op_adjustment[axis] -= 1
+            num_flop: int = functools.reduce(operator.mul, op_adjustment)
+        else:
+            num_flop: int = functools.reduce(operator.mul, self.view)
+        operation = Op(op_type, axis = axis, flop = num_flop)
         if len(self.view) == 1:
             new_shape = [1]
         else:
