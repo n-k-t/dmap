@@ -7,12 +7,18 @@ from dmap.ir import IR, MuOp
 
 
 class Compiler():
-    def __init__(self, head: Tensor) -> None:
+    def __init__(self, head: Tensor, fuse: bool = True) -> None:
         self.tokens = self._topological_sort(head) # If the item is returned from a function, then the user
         # should know what the item is by looking at the return type of the function. This means that I should 
         # not need to declare the type here.
         self.ast = [self.lower(token) for token in self.tokens]
 
+
+    # As the optimier cycles through optimizations, the change is an alternate colored text while the rest is uniform.
+    
+    # LOAD, TEMP, STORE are almost implicit from ordering/op type.
+        
+    # First cycle is just the topological sort, then next could be fusion optimizations.
 
     def _topological_sort(self, tensor: Tensor) -> list[tuple[Op, Tensor, list[Tensor]]]:
         def top_sort_util(tensor, visited, stack) -> list[Tensor]:
@@ -33,7 +39,7 @@ class Compiler():
     # unnecessary stores when it will just be read back from memory immediately.
     # need to first add the ability to fuse multiple operations together into a fusion token/op
 
-    # Maybe implement limitations if there is an unsafe reshape that has occure between op fusion?
+    # Maybe implement limitations if there is an unsafe reshape that has occured between op fusion?
     # Restrict at any reshape? If a reshape happens within fusion and is of a temporary variable, then that 
     # requires conditionally mapping that input without explicitly indexing into it.
     #### I can think through this more in the future.

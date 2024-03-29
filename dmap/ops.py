@@ -5,7 +5,7 @@ from typing import Optional
 class Op:
     def __init__(
                     self, 
-                    op: Memory|Movement|Unary|Binary|Reduce|Fusion, 
+                    op: Memory|Movement|Unary|Binary|Reduce, 
                     view: Optional[list[int]] = None, 
                     stride: Optional[list[int]] = None,
                     axis: Optional[int] = None, 
