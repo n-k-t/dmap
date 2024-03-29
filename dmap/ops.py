@@ -5,7 +5,7 @@ from typing import Optional
 class Op:
     def __init__(
                     self, 
-                    op: Memory|Movement|Unary|Binary|Reduce, 
+                    op: Memory|Movement|Unary|Binary|Reduce|Fusion, 
                     view: Optional[list[int]] = None, 
                     stride: Optional[list[int]] = None,
                     axis: Optional[int] = None, 
@@ -16,6 +16,14 @@ class Op:
         self.stride = stride
         self.axis = axis
         self.num_flop = flop
+# considering adding in: in, out, and fus_ops
+"""
+when creating the operation itself, could instantiate it as normal
+pass it to the child
+then pass the child to out for the operation
+This means all tensors would point to the ops and parents and all 
+ops would point to their inputs and outputs
+"""
 
 class Fusion():
     def __init__(self) -> None:

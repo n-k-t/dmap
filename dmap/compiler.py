@@ -32,6 +32,21 @@ class Compiler():
             return stack
         return top_sort_util(tensor, set(), [])
     
+    # TODO: Need to think through the structur of the tuple and how this will work with the fusion operation.
+    # I could create a token instance instead of using a tuple
+    # If I track the parents and child in the op itself, then could I just create a separate fusion op that would 
+    # combine these instances in order. Remove the tokens entirely? Or just use the fusion op within the operation
+    # then the tokens would all just be instances of ops.
+    def fusion(self, ops: list[tuple[Op, Tensor, list[Tensor]]]) -> list[tuple[Op, Tensor, list[Tensor]]]:
+        index: int = 0
+
+        while int < len(ops):
+            if isinstance(ops[index][0].op, Binary) and isinstance(ops[index+1][0].op, Reduce) and (ops[index][1] in ops[index+1][2]):
+                # op_holder = ops.pop(index)
+                # ops[index] = (Op(Fusion), )
+                pass
+
+    
     # Thinking about maintaining a similar structure to the previous version. However, am considering
     # adding a mix()/meld/fuse/bind function that somehow draws connections between like operations (mapping 
     # like-axes together and also being able to translate dimensions between off-axes)
