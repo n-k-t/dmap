@@ -1,58 +1,32 @@
-from __future__ import annotations
+from enum import auto, Enum
 
-# Valid memory operations include the following:
-#### LOAD
-class MemoryOp:
-    def __init__(
-            self
-        ) -> None:
-        self.op: str = 'LOAD'
 
-# Valid movement operations include the following:
-#### SAFE_RESHAPE
-#### UNSAFE_RESHAPE
-class MovementOp:
-    def __init__(
-            self, 
-            op: str, 
-            view: list[int],
-            stride: list[int] | None = None
-        ) -> None:
-        self.op: str = op
-        self.view: list[int] | None = view
-        self.stride: list[int] | None = stride
+class Memory(Enum):
+    LOAD = auto()
 
-# Valid unary operations include the following:
-#### ABSOLUTE_VALUE
-#### LOGARITHM
-class UnaryOp:
-    def __init__(
-            self, 
-            op: str
-        ) -> None:
-        self.op: str = op
 
-# Valid binary operations include the following:
-#### ADDITION
-#### DIVISION
-#### MULTIPLICATION
-#### SUBTRACTION
-class BinaryOp:
-    def __init__(
-            self, 
-            op: str
-        ) -> None:
-        self.op: str = op
+class Movement(Enum):
+    RESHAPE_S = auto()
+    RESHAPE_U = auto()
 
-# Valid reduction operations include the following:
-#### MAXIMUM
-#### MINIMUM
-#### SUMMATION
-class ReduceOp:
-    def __init__(
-            self, 
-            op: str, 
-            axis: int
-        ) -> None:
-        self.op: str = op
-        self.axis: int = axis
+
+class Unary(Enum):
+    EXP = auto()
+    LOG = auto()
+
+
+class Binary(Enum):
+    ADD = auto()
+    SUB = auto()
+    MUL = auto()
+    DIV = auto()
+
+
+class Reduce(Enum):
+    MAX = auto()
+    MIN = auto()
+    SUM = auto()
+
+
+class Fusion(Enum):
+    ELE_RED = auto()
