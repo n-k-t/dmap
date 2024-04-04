@@ -413,7 +413,7 @@ class Compiler():
                 file.write(code)
 
             with tempfile.NamedTemporaryFile(delete = True) as byte_file:
-                process = subprocess.run([f"gcc -x c -shared -Wall -Werror -o {byte_file.name} -fPIC {code_file.name}"], shell = True, capture_output = True)
+                process = subprocess.run([f"gcc -x c -shared -O3 -Wall -Werror -o {byte_file.name} -fPIC {code_file.name}"], shell = True, capture_output = True)
                 if process.returncode != 0:
                     print(process.stderr.decode())
                     raise RuntimeError("There was an error while compiling a kernel.")
