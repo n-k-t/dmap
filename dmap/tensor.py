@@ -2,8 +2,7 @@ from __future__ import annotations
 import functools
 import operator
 from copy import deepcopy
-from dmap.memory import Memory
-from dmap.ops import Op, Memory, Movement, Unary, Binary, Reduce
+from dmap.ops import Memory, Movement, Unary, Binary, Reduce, Fusion
 from typing import Optional
 
 
@@ -12,14 +11,14 @@ class Tensor:
             self, 
             view: list[int], 
             stride: list[int] = [], 
-            offset: int = 0,
-            parents: list[Tensor] = [],
+            parents: list[Tensor] = [], 
             op: Optional[Op] = None
         ) -> None:
         # Control flow for setting both the operation and memory fields.
         self.validate_shape(view)
         if not op:
             self.op = Op(Memory.LOAD) # Need to make this an actual memory object
+            self.op.t_out = self
             self.stride = self.stride_from_view(view)
             # self._memory: Memory = Memory(shape, True) # Remove memory at the end of the day.
         elif op.op != Movement.RESHAPE_U:
@@ -31,8 +30,6 @@ class Tensor:
             self.stride = stride
             # self._memory = Memory(shape, False, stride)
         self.view = view
-        self.offset = offset
-        self.mask: dict[str, list[list[int | str]]] = {"Axes": [], "Indices": []} # list -> [axis, "gt/lt/eqt", index]
         self.contiguous: bool = self.check_contiguous(self.stride, view)
         self.dtype: str = "float"
         self.parents = parents
@@ -74,6 +71,8 @@ class Tensor:
         # TODO: Can't remove these labels because stride is ahead. Maybe move it to the back.
         child = Tensor(view = new_shape, parents = [self], op = operation)
         self.children.append(child)
+        operation.t_in = [self]
+        operation.t_out = child
         return child
 
 
@@ -85,6 +84,8 @@ class Tensor:
         operation = Op(Movement.RESHAPE_U, new_shape, new_stride)
         child = Tensor(view = new_shape, stride = new_stride, parents = [self], op = operation)
         self.children.append(child)
+        operation.t_in = [self]
+        operation.t_out = child
         return child
 
 
@@ -98,6 +99,9 @@ class Tensor:
         child = Tensor(view = self.view, parents = [self, tensor_2], op = operation)
         self.children.append(child)
         tensor_2.children.append(child)
+        operation.t_in = [self]
+        operation.t_in.append(tensor_2)
+        operation.t_out = child
         return child
     
 
@@ -136,6 +140,8 @@ class Tensor:
             new_shape.pop(axis)
         child = Tensor(view = new_shape, parents = [self], op = operation)
         self.children.append(child)
+        operation.t_in = [self]
+        operation.t_out = child
         return child
     
 
@@ -150,14 +156,41 @@ class Tensor:
     def sum(self, axis: int) -> Tensor:
         return self._reduction(axis = axis, op_type = Reduce.SUM)
     
+
+    # Unary Operations
+    def _unary_operation(self, op_type: Binary) -> Tensor:
+        num_flop: int = functools.reduce(operator.mul, self.view)
+        operation = Op(op_type, flop = num_flop)
+        # TODO: Can't remove these labels because stride is ahead. Maybe move it to the back.
+        child = Tensor(view = self.view, parents = [self], op = operation)
+        self.children.append(child)
+        operation.t_in = [self]
+        operation.t_out = child
+        return child
     
-    # Topological Sort
-    def _topological_sort(self) -> list[Tensor]:
-        def top_sort_util(tensor, visited, stack) -> list[Tensor]:
-            visited.add(tensor)
-            for parent in tensor.parents:
-                if parent not in visited:
-                    top_sort_util(parent, visited, stack)
-            stack.append(tensor)
-            return stack
-        return top_sort_util(self, set(), [])
+
+    def exp(self) -> Tensor:
+        return self._unary_operation(Unary.EXP)
+    
+
+    def log(self) -> Tensor:
+        return self._unary_operation(Unary.LOG)
+
+
+class Op:
+    def __init__(
+                    self, 
+                    op: Memory|Movement|Unary|Binary|Reduce|Fusion, 
+                    view: Optional[list[int]] = None, 
+                    stride: Optional[list[int]] = None,
+                    axis: Optional[int] = None, 
+                    flop: int = 0
+                ) -> None:
+        self.op = op
+        self.view = view
+        self.stride = stride
+        self.axis = axis
+        self.num_flop = flop
+        self.t_in: Optional[list[Tensor]] = None
+        self.t_out: Optional[Tensor] = None
+        self.fus_ops: Optional[list[Op]] = None
