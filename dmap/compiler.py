@@ -82,14 +82,14 @@ class Compiler():
             self.kernel_names.append("Free")
             return [IR(MuOp.NOOP, "", "", [])]
 
-        temp_name: str = self._gen_kernel_name(token)
+        temp_name: str = self._gen_kernel_name(token) + "_v"
 
         repetitions: int = 0
         for name in self.kernel_names:
-            if temp_name == name:
+            if temp_name in name:
                 repetitions += 1
         
-        self.kernel_names.append(temp_name + f"_v{repetitions}")
+        self.kernel_names.append(temp_name + f"{repetitions}")
 
         queue: list[Op] = self._enqueue(token)
         
