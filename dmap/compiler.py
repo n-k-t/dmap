@@ -16,6 +16,7 @@ class Compiler():
         self.tokens = self._traverse(head)
         if fuse:
             self.tokens = self._fuse(self.tokens)
+        self.kernel_flop = [token.num_flop for token in self.tokens]
         self.kernel_names: list[str] = []
         self._kernel_tensors: list[list[list[int]]] = []
         self._op_pattern_match: dict[Binary|Reduce|Unary, Callable] = {
@@ -429,9 +430,9 @@ class Compiler():
 
 
     def bench(self) -> None:
-        for name, shapes, prog in zip(self.kernel_names, self._kernel_tensors, self.program):
+        for name, shapes, prog, flop in zip(self.kernel_names, self._kernel_tensors, self.program, self.kernel_flop):
             if name == "Free":
-                print(f"{name:<40} {0.0:>10.3f} s")
+                print(f"{name:<40} {0.0:>10.3f} s {0.0:>10.3E} FLOPs")
                 continue
 
             tensor_holder = []
@@ -456,4 +457,8 @@ class Compiler():
 
                 total_time += (stop - start)
 
-            print(f"{name:<40} {total_time / iters:>10.3E} s")
+            avg_time = total_time / iters
+
+            flops = flop / avg_time
+
+            print(f"{name:<40} {avg_time:>10.3E} s {flops:>10.3E} FLOPs")
