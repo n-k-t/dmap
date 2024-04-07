@@ -17,7 +17,6 @@ class MuOp(Enum):
     SUM = auto()
     MAX = auto()
     MIN = auto()
-    NOOP = auto()
     TEMP = auto()
     EXP = auto()
     LOG = auto()

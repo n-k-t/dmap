@@ -125,7 +125,6 @@ class Tensor:
     def _reduction(self, axis: int, op_type: Reduce) -> Tensor:
         assert axis >= 0, "The reduction operation cannot be perfomed along a negative axis."
         assert axis <= len(self.view) - 1, "The reduction operation cannot be performed because the axis provided is greater than the number of dimensions in the tensor."
-        # operation = ReduceOp(op_type, axis)
         if self.view[axis] > 1:
             op_adjustment: list[int] = deepcopy(self.view)
             op_adjustment[axis] -= 1
