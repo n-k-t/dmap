@@ -155,6 +155,7 @@ class Lower:
 
     def _make_and_move_reduce_axis(self, ast: list[IR], index: int, dims: list[IR]):
         dims[index].op = MuOp.N_R
+        dims[index].value = "r_" + dims[index].value
         red_ax_ind = ast.index(dims[index])
         inner_ax_ind = max([ast.index(dim) for dim in dims])
         if red_ax_ind != inner_ax_ind:

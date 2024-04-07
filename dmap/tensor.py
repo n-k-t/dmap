@@ -1,7 +1,6 @@
 from __future__ import annotations
 import functools
 import operator
-from copy import deepcopy
 from dmap.ops import Memory, Movement, Unary, Binary, Reduce, Fusion
 from typing import Optional
 
@@ -126,7 +125,7 @@ class Tensor:
         assert axis >= 0, "The reduction operation cannot be perfomed along a negative axis."
         assert axis <= len(self.view) - 1, "The reduction operation cannot be performed because the axis provided is greater than the number of dimensions in the tensor."
         if self.view[axis] > 1:
-            op_adjustment: list[int] = deepcopy(self.view)
+            op_adjustment: list[int] = [dim for dim in self.view]
             op_adjustment[axis] -= 1
             num_flop: int = functools.reduce(operator.mul, op_adjustment)
         else:
@@ -135,7 +134,7 @@ class Tensor:
         if len(self.view) == 1:
             new_shape = [1]
         else:
-            new_shape = deepcopy(self.view)
+            new_shape = [dim for dim in self.view]
             new_shape.pop(axis)
         child = Tensor(view = new_shape, parents = [self], op = operation)
         self.children.append(child)

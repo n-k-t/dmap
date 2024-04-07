@@ -1,4 +1,3 @@
-from copy import deepcopy
 from ctypes import cast, c_float, CDLL, POINTER
 import subprocess
 import tempfile
@@ -11,9 +10,9 @@ from dmap.ops import Fusion
 
 class C_IR:
     def __init__(self, lowered: Lower) -> None:
-        self.ast = [self._transpile(branch) for branch in deepcopy(lowered.ast)]
-        self.names = deepcopy(lowered.names)
-        self._tokens = deepcopy(lowered.tokens)
+        self.ast = [self._transpile(branch) for branch in lowered.ast]
+        self.names = lowered.names
+        self._tokens = lowered.tokens
 
 
     def _transpile(self, ast: list[IR]) -> list[IR]:
