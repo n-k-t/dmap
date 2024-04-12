@@ -1,4 +1,4 @@
-from ctypes import cast, c_float, CDLL, POINTER
+from ctypes import cast, c_float, CDLL, POINTER, c_size_t, c_void_p, sizeof
 import subprocess
 import tempfile
 import time
@@ -118,7 +118,7 @@ class C_IR:
         return "".join(headers + macros + main)
 
 
-    def bench(self, branch, iters = 10) -> None:
+    def bench(self, branch, iters = 10, unset = False) -> None:
         index = self.ast.index(branch)
 
         name = self.names[index]
@@ -151,7 +151,10 @@ class C_IR:
         args_holder = []
 
         for shape in shapes:
-            tensor_holder.append(self._gen_random_vals(shape))
+            if unset:
+                tensor_holder.append(self._gen_unset_vals(shape))
+            else:
+                tensor_holder.append(self._gen_random_vals(shape))
             args_holder.append(POINTER(c_float))
 
         program.argtypes = args_holder
@@ -167,6 +170,10 @@ class C_IR:
             stop = time.perf_counter()
 
             total_time += (stop - start)
+
+        if unset:
+            for tensor in tensor_holder:
+                self._deallocate(tensor)
 
         avg_time = total_time / iters
 
@@ -196,3 +203,18 @@ class C_IR:
         size = functools.reduce(operator.mul, size)
         values = [hash(time.time_ns()) % 21 / 8 for _ in range(size)]
         return cast((c_float * size)(*values), POINTER(c_float))
+
+
+    def _gen_unset_vals(self, size: list[int]) -> POINTER(c_float):
+        func = CDLL("libc.so.6")["malloc"]
+        func.argtypes = [c_size_t]
+        func.restype = c_void_p
+        size = functools.reduce(operator.mul, size)
+        return cast(func(sizeof(c_float) * size), POINTER(c_float))
+
+
+    def _deallocate(self, allocation) -> None:
+        func = CDLL("libc.so.6")["free"]
+        func.argtypes = [c_void_p]
+        func.restype = None
+        func(allocation)

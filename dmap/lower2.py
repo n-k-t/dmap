@@ -71,6 +71,7 @@ class Lower:
                 op_holder = Op(Fusion.ELE_RED)
                 op_holder.num_flop = ops[index].num_flop + ops[index + 1].num_flop
                 op_holder.fus_ops = ops[index: index + 2]
+                op_holder.axis = ops[index + 1].axis
                 ops.pop(index)
                 ops[index] = op_holder
             index += 1
@@ -99,6 +100,7 @@ class Lower:
 
         self._define_ctx(queue, ast, ctx, sym_tab)
 
+        # TODO: Now we track the axis for reduction, so we can pass the axis inside with the opts and move the make_and_move
         self._get_g_dims(ast, ctx, sym_tab)
 
         for op in queue:
@@ -110,6 +112,14 @@ class Lower:
             for parent in op.t_in:
                 sym_tab["in_t_point"].append(self._index_in(parent, ast, sym_tab))
             
+            # NOTE: Could we pass around an unroll factor that allows us to track what exactly was unrolled.
+            #### in_t_point will have first n/2 entries as input 1 and second n/2 entries as input 2. Then, if we know
+            #### the factor, we can take the [ind] and [ind + n/2] entries (for a binary op ex.) where ind runs from 0 to n/2
+            #### AKA, we can index in and render the loads in a loop setting.
+            # TODO: I think that I may need to figure out how to map to the specific N_R if we have multiple reduces happening;
+            # otherwise, all temporary variables will always be mapped to the outer most reduce.
+            # I might be able to do this by tracking back through the global dimensions. But again, I have to figure out how I 
+            # will deal with the tesselations because you can't index into a nested structure so easily.
             self._op_match[op.op](ast, sym_tab)
 
             if isinstance(op.op, Reduce):
@@ -200,6 +210,10 @@ class Lower:
         
         stride = tensor.stride
 
+        # NOTE: Think I'll need to condition inside if the mapped index is tesselated
+        # I may also want to remove the index tracker and instead create a back tracker -> Optional[IR]
+        # How will I handle unrolling? Especially since you could unroll a tesselated dimension.
+        # Does the unrolling happen at a later stage? I.e. how do you unroll two operands and track them all
         for index, dim in enumerate(dim_map):
             if str(stride[index]) not in sym_tab:
                 sym_tab[str(stride[index])] = IR(MuOp.CONST, "int", stride[index], [])
