@@ -208,12 +208,12 @@ class Lower:
             if len(red_axes) > 0:
                 offset = 0
                 dim_set.clear()
-                tes_set = set([i[0] for i in tesselate])
-                for i in red_axes:
-                    if i in tes_set:
+                tes_set = sorted(set([i[0] for i in tesselate]))
+                for i in tes_set:
+                    if i in red_axes:
                         dim_set.add(i + offset)
                         dim_set.add(i + offset + 1)
-                        offset += 1
+                    offset += 1
                 if len(dim_set) > 0:
                     if dim_set != set(permute[-len(dim_set):len(permute)]):
                         raise ValueError("The reduce dimensions aren't the most nested (last) in the permutation given.")
