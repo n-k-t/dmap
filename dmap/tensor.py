@@ -13,21 +13,17 @@ class Tensor:
             parents: list[Tensor] = [], 
             op: Optional[Op] = None
         ) -> None:
-        # Control flow for setting both the operation and memory fields.
         self.validate_shape(view)
         if not op:
-            self.op = Op(Memory.LOAD) # Need to make this an actual memory object
+            self.op = Op(Memory.LOAD)
             self.op.t_out = self
             self.stride = self.stride_from_view(view)
-            # self._memory: Memory = Memory(shape, True) # Remove memory at the end of the day.
         elif op.op != Movement.RESHAPE_U:
             self.op = op
             self.stride = self.stride_from_view(view)
-            # self._memory = Memory(shape, True)
         else:
             self.op = op
             self.stride = stride
-            # self._memory = Memory(shape, False, stride)
         self.view = view
         self.contiguous: bool = self.check_contiguous(self.stride, view)
         self.dtype: str = "float"
@@ -65,9 +61,7 @@ class Tensor:
         new_size = functools.reduce(operator.mul, new_shape)
         assert new_size > 0, "The specified reshape cannot be performed as it has atleast one dimension of size zero."
         assert new_size == functools.reduce(operator.mul, self.view), "The specified reshape cannot be performed as it results in a different sized region of memory than the original allocation."
-        # operation = MovementOp("SAFE_RESHAPE", new_shape)
         operation = Op(Movement.RESHAPE_S, new_shape)
-        # TODO: Can't remove these labels because stride is ahead. Maybe move it to the back.
         child = Tensor(view = new_shape, parents = [self], op = operation)
         self.children.append(child)
         operation.t_in = [self]
@@ -79,7 +73,6 @@ class Tensor:
     def _unsafe_reshape(self, new_shape: list[int], new_stride: list[int]) -> Tensor:
         assert functools.reduce(operator.mul, new_shape) > 0, "The specified reshape cannot be performed as it has atleast one dimension of size zero."
         assert len(new_shape) == len(new_stride), "The specified reshape cannot be performed because the number of dimensions provided for the shape and stride do not match."
-        # operation = MovementOp("UNSAFE_RESHAPE", new_shape, new_stride)
         operation = Op(Movement.RESHAPE_U, new_shape, new_stride)
         child = Tensor(view = new_shape, stride = new_stride, parents = [self], op = operation)
         self.children.append(child)
@@ -91,10 +84,8 @@ class Tensor:
     # Binary Operations
     def _binary_operation(self, tensor_2: Tensor, op_type: Binary) -> Tensor:
         assert self.view == tensor_2.view, "The operation cannot be performed because the two tensors do not have identical shapes."
-        # operation = BinaryOp(op_type)
         num_flop: int = functools.reduce(operator.mul, self.view)
         operation = Op(op_type, flop = num_flop)
-        # TODO: Can't remove these labels because stride is ahead. Maybe move it to the back.
         child = Tensor(view = self.view, parents = [self, tensor_2], op = operation)
         self.children.append(child)
         tensor_2.children.append(child)
@@ -159,7 +150,6 @@ class Tensor:
     def _unary_operation(self, op_type: Binary) -> Tensor:
         num_flop: int = functools.reduce(operator.mul, self.view)
         operation = Op(op_type, flop = num_flop)
-        # TODO: Can't remove these labels because stride is ahead. Maybe move it to the back.
         child = Tensor(view = self.view, parents = [self], op = operation)
         self.children.append(child)
         operation.t_in = [self]
@@ -187,7 +177,9 @@ class Op:
         self.op = op
         self.view = view
         self.stride = stride
-        self.axis = axis
+        self.axis = []
+        if isinstance(axis, int):
+            self.axis.append(axis)
         self.num_flop = flop
         self.t_in: Optional[list[Tensor]] = None
         self.t_out: Optional[Tensor] = None
