@@ -135,6 +135,7 @@ class C_IR:
             return f"logf({self._render_load(ir.deps[0])})"
 
 
+    @functools.lru_cache(maxsize = None, typed = False)
     def _render_load(self, ir: IR) -> str:
         if len(ir.deps) == 1:
             return f"(*({ir.deps[0].value}))"
@@ -151,6 +152,7 @@ class C_IR:
                 return f"(*({ir.deps[0].value} + {temp_ind}))"
 
 
+    @functools.lru_cache(maxsize = None, typed = False)
     def _render_inds(self, ir: IR) -> str:
         if (ir.deps[0].op is MuOp.CONST) and (ir.deps[1].op is MuOp.CONST):
             new_val = self._const_bin_map[ir.op](int(ir.deps[0].value), int(ir.deps[1].value))
