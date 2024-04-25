@@ -70,7 +70,16 @@ class Lower:
 
         for op in queue:
             if isinstance(op.op, Reduce):
-                min_red_ax = min(new_red_axes[red_count])
+                store_ax: int = -1
+                current_min: int = -1
+                for num, i in enumerate(new_red_axes[red_count]):
+                    if num == 0:
+                        current_min = ordered_dims.index(all_dims[i])
+                        store_ax = i
+                    elif ordered_dims.index(all_dims[i]) < current_min:
+                        current_min = ordered_dims.index(all_dims[i])
+                        store_ax = i
+                min_red_ax = store_ax
                 all_red_axes = new_red_axes[red_count]
                 red_count += 1
             else:
