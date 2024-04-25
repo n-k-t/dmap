@@ -14,12 +14,17 @@ class MuOp(Enum):
     N_R = auto()
     LOOP = auto()
     END = auto()
-    SUM = auto()
     MAX = auto()
     MIN = auto()
     TEMP = auto()
     EXP = auto()
     LOG = auto()
+    MOD = auto()
+    FL_DIV = auto()
+    BUILT_IN = auto()
+    G_D = auto()
+    L_D = auto()
+    T_ARG = auto()
 
     def __repr__(self) -> str:
         return str(self)

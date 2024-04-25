@@ -25,7 +25,6 @@ class Tensor:
             self.op = op
             self.stride = stride
         self.view = view
-        self.contiguous: bool = self.check_contiguous(self.stride, view)
         self.dtype: str = "float"
         self.parents = parents
         self.children: list[Tensor] = []
@@ -59,6 +58,7 @@ class Tensor:
     # Memory Operations
     def safe_reshape(self, new_shape: list[int]) -> Tensor:
         new_size = functools.reduce(operator.mul, new_shape)
+        assert self.check_contiguous(self.stride, self.view), "The current view is not contiguous, therefore it can't safely be reshaped."
         assert new_size > 0, "The specified reshape cannot be performed as it has atleast one dimension of size zero."
         assert new_size == functools.reduce(operator.mul, self.view), "The specified reshape cannot be performed as it results in a different sized region of memory than the original allocation."
         operation = Op(Movement.RESHAPE_S, new_shape)

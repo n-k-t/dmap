@@ -424,16 +424,14 @@ class Lower:
 
         if op is MuOp.SUM:
             for i in range(num_temp):
-                for j in op_in_t_inds:
-                    temp_ir = IR(op, data_type, "", [j[last_ele_ind]])
-                    op_link.append(temp_ir)
-                    op_link.append(IR(MuOp.STORE, data_type, dim_deps_in[red_dim][i].value, [dim_deps_in[red_dim][i], temp_ir]))
+                temp_ir = IR(op, data_type, "", [op_in_t_inds[i][last_ele_ind]])
+                op_link.append(temp_ir)
+                op_link.append(IR(MuOp.STORE, data_type, dim_deps_in[red_dim][i].value, [dim_deps_in[red_dim][i], temp_ir]))
         else:
             for i in range(num_temp):
-                for j in op_in_t_inds:
-                    temp_ir = IR(op, data_type, "", [dim_deps_in[red_dim][i], j[last_ele_ind]])
-                    op_link.append(temp_ir)
-                    op_link.append(IR(MuOp.STORE, data_type, dim_deps_in[red_dim][i].value, [dim_deps_in[red_dim][i], temp_ir]))
+                temp_ir = IR(op, data_type, "", [dim_deps_in[red_dim][i], op_in_t_inds[i][last_ele_ind]])
+                op_link.append(temp_ir)
+                op_link.append(IR(MuOp.STORE, data_type, dim_deps_in[red_dim][i].value, [dim_deps_in[red_dim][i], temp_ir]))
 
 
     def _finish_reduce(
