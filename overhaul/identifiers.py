@@ -6,14 +6,14 @@ class DType(Enum):
     float32 = auto()
     int32 = auto()
 
-# An enum representing a memory operation of a tensor.
-class Memory(Enum):
-    LOAD = auto()
-
-# An enum representing a movement operation of a tensor.
-class Movement(Enum):
+# An enum representing a memory altering operation for a tensor.
+class MemoryAlter(Enum):
     RESHAPE_S = auto()
     RESHAPE_U = auto()
+
+# An enum representing a memory movement operation for a tensor.
+class MemoryMove(Enum):
+    LOAD = auto()
 
 # An enum representing a unary operation of a tensor.
 class Unary(Enum):
