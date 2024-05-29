@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Union
+from typing import Generator, List, Optional, Union
 import functools
 import operator
 
@@ -21,7 +21,7 @@ class Op():
     def apply(
             self, 
             *tensors: Tensor, 
-            **kwargs: Optional[List[int]]
+            **kwargs: Optional[Union[bool, List[int]]]
         ) -> Tensor:
         # Ensure that all tensors being operated upon are located on the same device.
         op_device: str = tensors[0].device.standard()
@@ -75,6 +75,7 @@ class Tensor():
         # Create a hidden "source operation" field that can be filled (for tracing) if an operation is applied.
         self._src_op: Optional[Op] = None
 
+
     # ------- Utility Functions ------- #
 
     # Verify that the two tensors being operated upon are the same shape.
@@ -84,6 +85,58 @@ class Tensor():
         ) -> None:
         if self.tdata.shape != t2.tdata.shape:
             raise ValueError("The two tensors being operated upon do not have identical shapes.")
+
+    # Verify that the reduction axis specified is legal (within the dimensional bounds of the tensor) and if so, then calculate the new shape.
+    def _reduce_util(
+            self, 
+            axis: int, 
+            keep_dim: bool
+        ) -> None:
+        # Make sure the axis is non-negative.
+        assert axis >= 0, \
+            "The reduction operation cannot be perfomed along a negative axis."
+
+        # Guarantee that the axis exists for the tensor.
+        assert axis <= len(self.tdata.shape) - 1, \
+            "The provided reduction axis index is greater than the number of dimensions in the tensor."
+
+        # A tensor cannot collapse to zero dimensions.
+        if len(self.tdata.shape) == 1:
+            return [1]
+
+        # Preserve the dimension if desired.
+        if keep_dim is True:
+            return [i if self.tdata.shape.index(i) != axis else 1 for i in self.tdata.shape]
+
+        # Remove the dimension as expected.
+        return [i for i in self.tdata.shape if self.tdata.shape.index(i) != axis]
+
+    # Get a topological sort of all non-load operation resulting tensors in the DAG created by the operations specified below (calling ops in op.py).
+    #### NOTE: A DAG is a directed acyclic graph and, in this case, represents a directed graph containing tensors and operations created by the user.
+    def _top_sort(
+            self
+        ) -> List[Tensor]:
+        # Create a utility function that recursively yields all tensors in the DAG with operand tensors (parents).
+        def ts_util(
+                tensor: Tensor, 
+                t_set: set[Tensor]
+            ) -> Generator[Tensor]:
+            # Add the tensor called in the function to a set of visited tensors.
+            t_set.add(tensor)
+
+            # Check if the tensor has a source operation (if it does, then it will have parents).
+            if tensor._src_op is not None:
+                # Iterate over all of the parent tensors of the result tensor.
+                for parent in tensor._src_op.parents:
+                    # If a parent is not already visited, then yield it to the list and call the generator on it.
+                    if parent not in t_set:
+                        yield from ts_util(parent, t_set)
+                # Yield the tensor called in the function to the list.
+                yield tensor
+
+        # Gather all non-load operation tensors in an ordered, topological sort list (starting on the input tensor and creating an empty set).
+        return list(ts_util(self, set()))
+
 
     # ------- Binary Ops ------- #
 
@@ -119,6 +172,7 @@ class Tensor():
         self._shape_check(t2)
         return op.Sub.apply(self, t2)
 
+
     # ------- Memory Alteration Ops ------- #
 
     # Apply a safe reshape to the tensor meaning contiguity and size of the memory region must be maintained.
@@ -151,6 +205,43 @@ class Tensor():
             "The specified reshape cannot be performed because the number of dimensions provided for the shape and stride do not match."
 
         return op.UnafeReshape.apply(self, new_shape = new_shape, new_stride = new_stride)
+
+
+    # ------- Reduction Ops ------- #
+
+    # Apply the maximum operation to the current object along a specified axis (and choose whether or not the dimension is preserved).
+    def max(
+            self, 
+            axis: int, 
+            keep_dim: bool = False
+        ) -> Tensor:
+        # Verify that the provided axis is within the dimensional boundary of the tensor and get the new shape of the result.
+        new_shape: List[int] = self._reduce_util(axis, keep_dim)
+
+        return op.Max.apply(self, new_shape = new_shape, axis = axis, keep_dim = keep_dim)
+
+    # Apply the minimum operation to the current object along a specified axis (and choose whether or not the dimension is preserved).
+    def min(
+            self, 
+            axis: int, 
+            keep_dim: bool = False
+        ) -> Tensor:
+        # Verify that the provided axis is within the dimensional boundary of the tensor and get the new shape of the result.
+        new_shape: List[int] = self._reduce_util(axis, keep_dim)
+
+        return op.Min.apply(self, new_shape = new_shape, axis = axis, keep_dim = keep_dim)
+
+    # Apply the summation operation to the current object along a specified axis (and choose whether or not the dimension is preserved).
+    def sum(
+            self, 
+            axis: int, 
+            keep_dim: bool = False
+        ) -> Tensor:
+        # Verify that the provided axis is within the dimensional boundary of the tensor and get the new shape of the result.
+        new_shape: List[int] = self._reduce_util(axis, keep_dim)
+
+        return op.Sum.apply(self, new_shape = new_shape, axis = axis, keep_dim = keep_dim)
+
 
     # ------- Unary Ops ------- #
 
