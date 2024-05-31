@@ -42,7 +42,7 @@ class Op():
         return new_tensor
 
 
-# Order the importing to resolve a circular import.
+# Order the inclusion of other files to resolve a circular import.
 import op
 
 
@@ -52,9 +52,11 @@ class Tensor():
             self, 
             tdata: Union[LazyTensor, List[int]], 
             dtype: DType = DType.float32, 
-            device: Optional[str] = None
+            device: Optional[str] = None, 
+            req_grad: bool = False
         ) -> Tensor:
         self.dtype = dtype
+        self.req_grad = req_grad
 
         # Associate the tensor with the base device if none is specified.
         if device is None:
@@ -68,12 +70,15 @@ class Tensor():
         elif isinstance(tdata, List):
             # Verify that the specified tensor shape includes a greater number of dimensions than zero.
             assert len(tdata) > 0, \
-                "A tensor cannot have no dimensionality."
+                "A tensor cannot have zero dimensions."
 
             self.tdata = LazyTensor(tdata, dtype, self.device)
 
-        # Create a hidden "source operation" field that can be filled (for tracing) if an operation is applied.
+        # Create a hidden variable that can be filled (for tracing) if an operation is applied to this instance of a tensor.
         self._src_op: Optional[Op] = None
+
+        # Create a hidden variable that stores the gradient of the tensor with respect to some other tensor (used during backpropagation).
+        self._grad: Optional[Tensor] = None
 
 
     # ------- Utility Functions ------- #
