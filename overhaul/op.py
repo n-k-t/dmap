@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 
 from lazy import LazyTensor
-from identifiers import Binary, MemoryAlter, Reduce, Unary
+from identifiers import Binary, MemoryAlter, MemoryMove, Reduce, Unary
 from tensor import Op
 
 
@@ -72,6 +72,17 @@ class UnafeReshape(Op):
         self.new_stride = new_stride
 
         return LazyTensor(new_shape, t1.dtype, t1.device, stride = new_stride, parents = [t1], src_op = MemoryAlter.RESHAPE_U, memory = t1.memory)
+
+
+# ------- Memory Movement Ops ------- #
+
+class Instantiate(Op):
+    def forward(
+            self,
+            t1: LazyTensor
+        ) -> LazyTensor:
+        # A new lazy tensor with identical attributes and memory (provides a load context barrier for backpropagation).
+        return LazyTensor(t1.shape, t1.dtype, t1.device, parents = [t1], src_op = MemoryMove.LOAD, memory = t1.memory)
 
 
 # ------- Reduction Ops ------- #

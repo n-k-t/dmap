@@ -24,9 +24,13 @@ class LazyTensor():
         self.device = device
         self.parents = parents
 
-        # If no source operation is provided, then the tensor is a result of a load operation.
+        # A flag indicating whether or not the lazy tensor has been evaluated or not (defaults to false).
+        self.evaluated: bool = False
+
+        # If no source operation is provided, then the tensor is a result of a load operation (and evaluated becomes a schedule barrier).
         if src_op is None:
             self.src_op = MemoryMove.LOAD
+            self.evaluated = True
         else:
             self.src_op = src_op
 

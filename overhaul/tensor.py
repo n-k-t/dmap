@@ -75,7 +75,7 @@ class Tensor():
             self.tdata = LazyTensor(tdata, dtype, self.device)
 
         # Create a hidden variable that can be filled (for tracing) if an operation is applied to this instance of a tensor.
-        self._src_op: Optional[Op] = None
+        self._src_op: Op = op.Instantiate()
 
         # Create a hidden variable that stores the gradient of the tensor with respect to some other tensor (used during backpropagation).
         self._grad: Optional[Tensor] = None
@@ -97,7 +97,7 @@ class Tensor():
             axis: int, 
             keep_dim: bool
         ) -> None:
-        # Make sure the axis is non-negative.
+        # Make sure that the axis is non-negative.
         assert axis >= 0, \
             "The reduction operation cannot be perfomed along a negative axis."
 
@@ -116,6 +116,18 @@ class Tensor():
         # Remove the dimension as expected.
         return [i for i in self.tdata.shape if self.tdata.shape.index(i) != axis]
 
+
+    # ------- Abstraction Functions ------- #
+
+    # Evaluate the lazy tensor.
+    def evaluate(
+            self
+        ) -> None:
+        self.tdata.evaluated = True
+
+
+    # ------- Backpropagation Functions ------- #
+
     # Get a topological sort of all non-load operation resulting tensors in the DAG created by the operations specified below (calling ops in op.py).
     #### NOTE: A DAG is a directed acyclic graph and, in this case, represents a directed graph containing tensors and operations created by the user.
     def _top_sort(
@@ -129,8 +141,8 @@ class Tensor():
             # Add the tensor called in the function to a set of visited tensors.
             t_set.add(tensor)
 
-            # Check if the tensor has a source operation (if it does, then it will have parents).
-            if tensor._src_op is not None:
+            # Check if the tensor has a source operation that is not its creation (if it does, then it will have parents for backpropagation).
+            if not isinstance(tensor._src_op, op.Instantiate):
                 # Iterate over all of the parent tensors of the result tensor.
                 for parent in tensor._src_op.parents:
                     # If a parent is not already visited, then yield it to the list and call the generator on it.
