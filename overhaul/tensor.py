@@ -42,7 +42,7 @@ class Op():
         return new_tensor
 
 
-# Order the inclusion of other files to resolve a circular import.
+# Order the inclusion of the op file to resolve a circular import.
 import op
 
 

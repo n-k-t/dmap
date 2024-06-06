@@ -112,6 +112,7 @@ class Kernel():
 #### If something is happening on a separate device, then there needs to be a copy operation.
 
 # TODO: Now should be ready to start separating into kernels, HEED the advice I've placed around here.
+# TODO: Device-centric allocations and data transfers.
 
 
 # NOTE: If we start sectioning things here, will need to track multiple "branches"
