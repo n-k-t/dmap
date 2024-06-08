@@ -24,12 +24,20 @@ class LazyTensor():
         self.device = device
         self.parents = parents
 
-        # A flag indicating whether or not the lazy tensor has been evaluated or not (defaults to false).
+        # A flag indicating whether or not the LazyTensor has been evaluated or not (defaults to false).
         self.evaluated: bool = False
+
+        # A flag indicating whether or not the LazyTensor was forced to evaluate during the scheduling process (defaults to False).
+        self.force_evaluated: bool = False
+
+        # Set the source operation.
+        self.src_op = src_op
 
         # If no source operation is provided, then the tensor is a result of a load operation (and evaluated becomes a schedule barrier).
         if src_op is None:
             self.src_op = MemoryMove.LOAD
+            self.evaluated = True
+        elif isinstance(src_op, MemoryMove):
             self.evaluated = True
         else:
             self.src_op = src_op
@@ -52,9 +60,6 @@ class LazyTensor():
         if memory is None:
             self.memory: Memory = Memory(functools.reduce(operator.mul, shape), shape, self.stride, dtype, device)
         else:
-            # Determine whether or not the contiguity actually extends down to the memory being tracked.
-            self._contiguous = self.stride == memory.true_stride
-
             self.memory = memory
 
     # A method that verifies that the shape are all positive integers greater than 0. 
@@ -78,7 +83,7 @@ class LazyTensor():
         stride.reverse()
         return stride
 
-    # A function that determines whether or not the lazy tensor is contiguous.
+    # A function that determines whether or not the LazyTensor is contiguous.
     def check_contiguous(
             self, 
             stride: list[int], 
@@ -89,3 +94,23 @@ class LazyTensor():
         if not all((stride[i - 1] == (stride[i] * shape[i])) for i in range(len(stride) - 1, 0, -1)):
             return False
         return True
+
+    # Cast a LazyTensor to a new data type.
+    def cast(
+            self, 
+            new_dtype: DType
+        ) -> LazyTensor:
+        return LazyTensor(self.shape, new_dtype, self.device, parents = [self], src_op = MemoryAlter.CAST)
+
+    # Create a contiguous copy of a LazyTensor on the same device.
+    def contiguous(
+            self
+        ) -> LazyTensor:
+        return LazyTensor(self.shape, self.dtype, self.device, parents = [self], src_op = MemoryMove.CONTIGUOUS)
+
+    # Create a copy of a LazyTensor on a new device.
+    def copy(
+            self, 
+            destination: Device
+        ) -> LazyTensor:
+        return LazyTensor(self.shape, self.dtype, destination, self.stride, [self], MemoryMove.COPY)

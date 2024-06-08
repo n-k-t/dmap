@@ -7,7 +7,7 @@ class Device():
             dname: str = "CPU"
         ) -> Device:
         # Verify that the device is supported by the library.
-        if dname not in ["CPU"]:
+        if dname not in ["CPU", "GPU"]:
             raise ValueError(f"The device you specified, '{dname},' is not supported.")
 
         self.dname = dname

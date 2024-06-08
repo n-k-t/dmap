@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Generator, List, Optional, Union
+from typing import Dict, Generator, List, Optional, Union
 import functools
 import operator
 
@@ -56,7 +56,6 @@ class Tensor():
             req_grad: bool = False
         ) -> Tensor:
         self.dtype = dtype
-        self.req_grad = req_grad
 
         # Associate the tensor with the base device if none is specified.
         if device is None:
@@ -66,6 +65,10 @@ class Tensor():
 
         # If the tensor data is not a lazy tensor instance, then convert it into one.
         if isinstance(tdata, LazyTensor):
+            # Verify that the tensor is being created on the correct device.
+            assert self.device.standard() == tdata.device.standard(), \
+                f"The tensor is attempting to be made on the '{self.device.standard()}' from data located on the '{tdata.device.standard()}'."
+
             self.tdata = tdata
         elif isinstance(tdata, List):
             # Verify that the specified tensor shape includes a greater number of dimensions than zero.
@@ -73,6 +76,12 @@ class Tensor():
                 "A tensor cannot have zero dimensions."
 
             self.tdata = LazyTensor(tdata, dtype, self.device)
+
+        # If the gradient is required, then evaluate the LazyTensor.
+        if req_grad:
+            self.evaluate()
+
+        self.req_grad = req_grad
 
         # Create a hidden variable that can be filled (for tracing) if an operation is applied to this instance of a tensor.
         self._src_op: Op = op.Instantiate()
@@ -83,6 +92,14 @@ class Tensor():
 
     # ------- Utility Functions ------- #
 
+    # Verify that the two tensors being operted upon are located on the same device.
+    def _device_check(
+            self, 
+            t2: Tensor
+        ) -> None:
+        if self.device.standard() != t2.device.standard():
+            raise ValueError("The two tensors being operated upon are not located on the same device.")
+
     # Verify that the two tensors being operated upon are the same shape.
     def _shape_check(
             self, 
@@ -90,6 +107,14 @@ class Tensor():
         ) -> None:
         if self.tdata.shape != t2.tdata.shape:
             raise ValueError("The two tensors being operated upon do not have identical shapes.")
+
+    # Verify that the two tensors being operated upon have the same data type.
+    def _type_check(
+            self, 
+            t2: Tensor
+        ) -> None:
+        if self.dtype is not t2.dtype:
+            raise ValueError("The two tensors being operated upon do not have identical data types.")
 
     # Verify that the reduction axis specified is legal (within the dimensional bounds of the tensor) and if so, then calculate the new shape.
     def _reduce_util(
@@ -111,10 +136,10 @@ class Tensor():
 
         # Preserve the dimension if desired.
         if keep_dim is True:
-            return [i if self.tdata.shape.index(i) != axis else 1 for i in self.tdata.shape]
+            return [i if num != axis else 1 for num, i in enumerate(self.tdata.shape)]
 
         # Remove the dimension as expected.
-        return [i for i in self.tdata.shape if self.tdata.shape.index(i) != axis]
+        return [i for num, i in enumerate(self.tdata.shape) if num != axis]
 
 
     # ------- Abstraction Functions ------- #
@@ -162,7 +187,11 @@ class Tensor():
             self, 
             t2: Tensor
         ) -> Tensor:
+        # Validate the device, data type, and shapes.
+        self._device_check(t2)
+        self._type_check(t2)
         self._shape_check(t2)
+
         return op.Add.apply(self, t2)
 
     # Apply the division operation to the current object and one other tensor.
@@ -170,7 +199,11 @@ class Tensor():
             self, 
             t2: Tensor
         ) -> Tensor:
+        # Validate the device, data type, and shapes.
+        self._device_check(t2)
+        self._type_check(t2)
         self._shape_check(t2)
+
         return op.Div.apply(self, t2)
 
     # Apply the multiplication operation to the current object and one other tensor.
@@ -178,7 +211,11 @@ class Tensor():
             self, 
             t2: Tensor
         ) -> Tensor:
+        # Validate the device, data type, and shapes.
+        self._device_check(t2)
+        self._type_check(t2)
         self._shape_check(t2)
+
         return op.Mul.apply(self, t2)
 
     # Apply the subtraction operation to the current object and one other tensor.
@@ -186,42 +223,81 @@ class Tensor():
             self, 
             t2: Tensor
         ) -> Tensor:
+        # Validate the device, data type, and shapes.
+        self._device_check(t2)
+        self._type_check(t2)
         self._shape_check(t2)
+
         return op.Sub.apply(self, t2)
 
 
     # ------- Memory Alteration Ops ------- #
 
-    # Apply a safe reshape to the tensor meaning contiguity and size of the memory region must be maintained.
-    #### NOTE: There is no copy involved here.
-    def safe_reshape(
+    # Cast a Tensor to a new data type.
+    def cast(
             self, 
-            new_shape: List[int]
+            new_dtype: DType
         ) -> Tensor:
-        # Verify that the starting tensor is contiguous, otherwise a safe reshape cannot occur.
-        assert self.tdata._contiguous, \
-            "The current shape is not contiguous, therefore it can't safely be reshaped."
+        # Return the same tensor if the new data type is identical to the current one.
+        if self.dtype is new_dtype:
+            return self
 
-        # Calculate the number of elements in the provided tensor shape and verify that the new size of the memory region matches the old.
-        #### NOTE: If the conditions in this function and the lazy tensor init are satisfied, then the output must be contiguous.
-        new_ele_cnt: int = functools.reduce(operator.mul, new_shape)
-        assert new_ele_cnt == functools.reduce(operator.mul, self.tdata.shape), \
-            "The specified reshape cannot be performed as it results in a different sized region of memory than the original allocation."
+        # The number of bytes corresponding to a single unit of a data type.
+        DTYPE_BYTES: Dict[DType, int] = {
+                                        DType.float32: 4, 
+                                        DType.int32: 4
+                                    }
 
-        return op.SafeReshape.apply(self, new_shape = new_shape)
+        # Return the cast tensor.
+        return Tensor(self.tdata.cast(new_dtype), new_dtype, self.device.standard(), self.req_grad)
 
-    # Apply an unsafe reshape to the tensor meaning there are no restrictions to alterations made to the memory region (outside of those required to be a tensor).
+
+    # Apply a reshape to the tensor; if stride is give, contiguity and memory region size are maintained if the safe flag is active.
     #### NOTE: There is no copy involved here.
-    def unsafe_reshape(
+    def reshape(
             self, 
             new_shape: List[int], 
-            new_stride: List[int]
+            safe: bool = True, 
+            new_stride: Optional[List[int]] = None
         ) -> Tensor:
-        # Verify that the provided shape and stride have an equal number of dimensions.
-        assert len(new_shape) == len(new_stride), \
-            "The specified reshape cannot be performed because the number of dimensions provided for the shape and stride do not match."
+        # If safety is desired, then calculate the number of elements in the provided tensor shape and verify equal memory region size.
+        if safe:
+            new_ele_cnt: int = functools.reduce(operator.mul, new_shape)
+            assert new_ele_cnt == functools.reduce(operator.mul, self.tdata.shape), \
+                "The specified reshape cannot be performed as it results in a different sized region of memory than the original allocation."
 
-        return op.UnafeReshape.apply(self, new_shape = new_shape, new_stride = new_stride)
+        # If a stride is provided, then verify that the provided shape and stride have an equal number of dimensions.
+        if new_stride:
+            assert len(new_shape) == len(new_stride), \
+                "The specified reshape cannot be performed because the number of dimensions provided for the shape and stride do not match."
+
+        return op.Reshape.apply(self, new_shape = new_shape, new_stride = new_stride)
+
+
+    # ------- Memory Movement Ops ------- #
+
+    # Create a contiguous copy of a tensor on the same device.
+    def contiguous(
+            self
+        ) -> Tensor:
+        # If the tensor is currently contiguous, then just return the current tensor.
+        if self.tdata._contiguous:
+            return self
+
+        # Return a contiguous copy of the Tensor.
+        return Tensor(self.tdata.contiguous(), self.dtype, self.device.standard(), self.req_grad)
+
+    # Copy a tensor from a source device to a destination device.
+    def copy_to(
+            self, 
+            destination: Device
+        ) -> Tensor:
+        # If the source and destination devices are the same, then return the current tensor.
+        if self.device.standard() == destination.standard():
+            return self
+
+        # Create and return a copy of the tensor on the new, specified device.
+        return Tensor(self.tdata.copy(destination), self.dtype, destination.standard(), self.req_grad)
 
 
     # ------- Reduction Ops ------- #
