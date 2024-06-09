@@ -144,11 +144,12 @@ class Tensor():
 
     # ------- Abstraction Functions ------- #
 
-    # Evaluate the lazy tensor.
+    # Force the LazyTensor to evaluate.
     def evaluate(
             self
         ) -> None:
         self.tdata.evaluated = True
+        self.tdata.force_evaluated = True
 
 
     # ------- Backpropagation Functions ------- #
@@ -241,12 +242,6 @@ class Tensor():
         # Return the same tensor if the new data type is identical to the current one.
         if self.dtype is new_dtype:
             return self
-
-        # The number of bytes corresponding to a single unit of a data type.
-        DTYPE_BYTES: Dict[DType, int] = {
-                                        DType.float32: 4, 
-                                        DType.int32: 4
-                                    }
 
         # Return the cast tensor.
         return Tensor(self.tdata.cast(new_dtype), new_dtype, self.device.standard(), self.req_grad)

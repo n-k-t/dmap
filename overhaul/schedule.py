@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections import deque
-from typing import Deque, Dict, List, Tuple, Union
+from typing import Deque, Dict, List, Optional, Tuple, Union
 
 from identifiers import Binary, MemoryAlter, MemoryMove, Reduce, Unary
 from lazy import LazyTensor
@@ -14,7 +14,8 @@ class LazyOp():
             srcs: Tuple[LazyOp], 
             in_t: List[LazyTensor], 
             out_t: LazyTensor, 
-            in_degree: int = 0
+            in_degree: int = 0, 
+            extra: Optional[int] = None
         ) -> LazyOp:
         self.op = op
         self.srcs = srcs
@@ -23,6 +24,9 @@ class LazyOp():
 
         # Track the number of children that an operation has (defaults to zero).
         self.in_degree = in_degree
+
+        # Store extra information (i.e. reduce axis).
+        self.extra = extra
 
         # Indicates whether or not the this is a terminal node of the subtree for a specific branch.
         self.barriers: List[bool] = []
@@ -55,54 +59,58 @@ class Schedule():
         # Reverse the Event order because it was created by traversing from the bottom of the LazyOp tree.
         self.events.reverse()
 
+
+    # ------- LazyTensors -> LazyOps ------- #
+
     # Perform breadth-first search of the LazyTensor graph, transforming it into a LazyOp graph.
     def _lt_to_lo(
             self, 
             branch: LazyTensor
         ) -> LazyOp:
         # Create the initial LazyOp for the LazyTensor passed in.
-        l_op: LazyOp = LazyOp(branch.src_op, (), branch.parents, branch)
+        l_op: LazyOp = LazyOp(branch.src_op, (), branch.parents, branch, extra = branch.extra)
 
-        # Create queues for both the LazyTensors and LazyOps; the order is identical between the two.
+        # Create a queue for both the LazyTensors and LazyOps.
         #### NOTE: A deque is used for easy FIFO (first in, first out -> pop left).
-        lt_queue: Deque = deque([branch])
-        lf_queue: Deque = deque([l_op])
+        lt_lo_queue: Deque = deque([(branch, l_op)])
 
         # Track the LazyOp where a LazyTensor is the output (prevents duplication of operations).
         lt_out_dict: Dict[LazyTensor, LazyOp] = {branch: l_op}
 
-        # Iterate until a queue is empty.
-        while len(lt_queue) > 0:
+        # Iterate until the queue is empty.
+        while len(lt_lo_queue) > 0:
             # Pop the first element of the LazyTensor and LazyOp queues.
-            lt_node: LazyTensor = lt_queue.popleft()
-            lf_node: LazyOp = lf_queue.popleft()
+            lt_node, lo_node = lt_lo_queue.popleft()
 
             # Iterate over the parent LazyTensors of the current LazyTensor.
             for parent in lt_node.parents:
                 # Create a new LazyOp if the parent is not in the tracking dict, else increase the in-degree.
                 if parent not in lt_out_dict:
-                    temp_l_op: LazyOp = LazyOp(parent.src_op, (), parent.parents, parent, 1)
+                    temp_l_op: LazyOp = LazyOp(parent.src_op, (), parent.parents, parent, 1, parent.extra)
 
                     # Add the new LazyOp as a source LazyOp for the one that was popped this iteration.
-                    lf_node.srcs += (temp_l_op, )
+                    lo_node.srcs += (temp_l_op, )
 
-                    # Add the LazyTensor and LazyOp to the queues.
-                    lt_queue.append(parent)
-                    lf_queue.append(temp_l_op)
+                    # Add the discovered LazyTensor and LazyOp to the queue.
+                    lt_lo_queue.append((parent, temp_l_op))
 
                     # Create a dictionary entry where the LazyTensor is the key and the LazyOp is the value.
                     lt_out_dict[parent] = temp_l_op
                 else:
                     # Add the pre-created LazyOp as a source to the LazyOp that was popped this iteration.
-                    lf_node.srcs += (lt_out_dict[parent], )
+                    lo_node.srcs += (lt_out_dict[parent], )
 
                     # Increase the in-degree of the pre-created Lazy-Op.
                     lt_out_dict[parent].in_degree += 1
 
                 # Adjust the number of possible barriers to match the number of source branches (this remains zero if there is no parent).
-                lf_node.barriers.append(False)
+                lo_node.barriers.append(False)
 
+        # Return the root of the LazyOp tree (the branch of the tensor operations).
         return l_op
+
+
+    # ------- LazyOps -> Events ------- #
 
     # Create a schedule of root LazyOps and determine if LazyTensors are inputs or outputs.
     def _make_schedule(
@@ -135,12 +143,11 @@ class Schedule():
                 # Pop the first LazyOp on the path.
                 position: LazyOp = traversal_queue.popleft()
 
-                # Verify that its position is 0.
+                # Verify that its in-degree is 0.
                 if position.in_degree != 0:
-                    print(position.op)
                     raise ValueError("A LazyOp with an in-degree not equal to zero cannot be scheduled.")
 
-                # If the LazyOp is a reduction operation, then increase the reduce count.
+                # If the LazyOp is a reduction operation, then increment the reduce count by one.
                 if isinstance(position.op, Reduce):
                     reduce_count += 1
 
@@ -182,9 +189,6 @@ class Schedule():
                         # Then we evaluate the LazyTensor as its output must be an input (is a dependency) for the discoverer.
                         src_op.out_t.evaluated = True
 
-                        # Note that it was not intended to be evaluated, but was forcefully done.
-                        src_op.out_t.force_evaluated = True
-
                         # Skip to the next iteration of the loop.
                         continue
                     # If the LazyOp is a memory reshape, contiguous copy, or movement (i.e. load/copy), then pass the conditionals.
@@ -205,10 +209,6 @@ class Schedule():
                         # If the LazyOp output is in the event input, then remove it.
                         if src_op.out_t in cur_event.in_t:
                             cur_event.in_t.pop(cur_event.in_t.index(src_op.out_t))
-
-                        # If the LazyOp output was forcefully evaluated (encountered with degree > one), then unevaluate and remove it from the inputs.
-                        if src_op.out_t.force_evaluated:
-                                src_op.out_t.evaluated = False
 
                         # Check if the LazyTensor is to be evaluated or not and add it to the output if it should be.
                         if src_op.out_t.evaluated:

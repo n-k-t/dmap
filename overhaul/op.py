@@ -89,7 +89,7 @@ class Max(Op):
         self.axis = axis
         self.keep_dim = keep_dim
 
-        return LazyTensor(new_shape, t1.dtype, t1.device, parents = [t1], src_op = Reduce.MAX)
+        return LazyTensor(new_shape, t1.dtype, t1.device, parents = [t1], src_op = Reduce.MAX, extra = axis)
 
 # Create an instance of a tensor minimum operation (along a specified axis and whether or not the dimension was maintained)
 class Min(Op):
@@ -104,7 +104,7 @@ class Min(Op):
         self.axis = axis
         self.keep_dim = keep_dim
 
-        return LazyTensor(new_shape, t1.dtype, t1.device, parents = [t1], src_op = Reduce.MIN)
+        return LazyTensor(new_shape, t1.dtype, t1.device, parents = [t1], src_op = Reduce.MIN, extra = axis)
 
 # Create an instance of a tensor summation operation (along a specified axis and whether or not the dimension was maintained)
 class Sum(Op):
@@ -119,7 +119,7 @@ class Sum(Op):
         self.axis = axis
         self.keep_dim = keep_dim
 
-        return LazyTensor(new_shape, t1.dtype, t1.device, parents = [t1], src_op = Reduce.SUM)
+        return LazyTensor(new_shape, t1.dtype, t1.device, parents = [t1], src_op = Reduce.SUM, extra = axis)
 
 
 # ------- Unary Ops ------- #

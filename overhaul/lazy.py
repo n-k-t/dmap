@@ -18,11 +18,15 @@ class LazyTensor():
             stride: Optional[List[int]] = None, 
             parents: List[LazyTensor] = [], 
             src_op: Optional[Union[Binary, MemoryAlter, MemoryMove, Reduce, Unary]] = None,
-            memory: Optional[Memory] = None
+            memory: Optional[Memory] = None, 
+            extra: Optional[int] = None
         ) -> LazyTensor:
         self.dtype = dtype
         self.device = device
         self.parents = parents
+
+        # Store extra information (i.e. reduce axis).
+        self.extra = extra
 
         # A flag indicating whether or not the LazyTensor has been evaluated or not (defaults to false).
         self.evaluated: bool = False
